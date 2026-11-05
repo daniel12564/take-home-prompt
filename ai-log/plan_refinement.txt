@@ -1,0 +1,568 @@
+# Plan validation and refinement
+
+## User
+
+/grill-with-docs I made an initial plan defined in PLAN.md, help me validate it and refine it to be ready before starting the implementation . Have additional context in PROJECT_BACKGROUND.md and TICKET.md
+
+## Assistant
+
+I'll start by reading the two referenced skills and the three planning documents.
+
+### Tool Glob File Search
+
+```
+{"globPattern":".agents/skills/*/SKILL.md"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/PLAN.md"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/PROJECT_BACKGROUND.md"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/TICKET.md"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/.agents/skills/setup-matt-pocock-skills/SKILL.md"}
+```
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/skills-lock.json"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/docs/agents/domain.md"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/docs/agents/issue-tracker.md"}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/.cursor/rules/frontend-rules.mdc"}
+```
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+I've read the plan, ticket, background, both skills, and profiled `seed.txt` (12,626 events, 20 accounts, Feb 1 – Jul 27 2026). Before the questions, the facts from the data that reshape the plan — these are things the plan currently assumes away:
+
+**What the seed data tells us**
+
+- Data ends **Mon 2026-07-27** (partial day). `now()` is Nov 2026, so "current week" cannot be wall-clock time; the app needs a reference date. The last complete week is Jul 20–26, and Jul 27 is a Monday — this matches the ticket's "Monday morning" scenario exactly.
+- Per-location volumes are **tiny**: median 3–5 calls/week per location, 1–2 leads, ~1 appointment. Pure percentage thresholds ("30% below typical") will flag noise everywhere. Account 16 averages 6 events/week total; account 20 has **zero events**.
+- One planted anomaly: **account 6 (15 locations), Jun 3 2026 — 805 events in one day** (~10× a normal week), spread across all 15 sites, same outcome mix. A per-location detector would list all 15 locations that week, and a mean-based baseline would be poisoned for 8 weeks after.
+- Smaller planted signals: locations going dark for a full week (`6/Site G` wk 16 & 27, `6/Site N` wk 9, `18/Site C` wk 13), `15/Site B` zero calls in the last complete week vs median 5.
+- No outcome-rate shifts (missed-call %, no-show %) detected at any threshold — the data is about **volume**, not quality.
+- Weekend volume is ~¼ of weekday; `location` is a free-text string on the event (no locations table); `occurred_at` is UTC and accounts span 5 US timezones.
+
+**Gaps in PLAN.md** (what Round 1 is about): no definition of "typical", "current week", "normal", or "needs attention"; a date-range selector that conflicts with weekly baselines; the LLM in the critical path; `seed.sql` vs the actual `seed.txt`; and task ordering that builds filters and UI before the normality logic, which is the only risky part.
+
+---
+
+## Round 1
+
+❓ **Q1 – Reference date ("today")**: The dashboard needs an `as_of` anchor. Options: (a) hardcode the seed max date, (b) env var `DASHBOARD_AS_OF` defaulting to `2026-07-27`, overridable per request via `?as_of=` for tests/demos, (c) derive it from `MAX(occurred_at)` per account at query time.
+
+➡️ (b). Explicit, testable, and the demo opens on the "Monday morning" the ticket describes. (c) is clever but makes the "today" differ per account and breaks the no-data account.
+
+---
+
+❓ **Q2 – Period granularity**: Replace the plan's free "date range selector" with a **week picker**: periods are always Mon–Sun weeks, default is the **last complete week** before `as_of`. The user can step back to earlier weeks. Viewing the in-progress week (Jul 27 Monday, a few hours of data) is either disabled or shown with a "partial week" banner and no verdicts.
+
+➡️ Yes — week-only, default last complete week, partial week disabled in v1. Arbitrary ranges make "compared to typical" ill-defined and double the work.
+
+---
+
+❓ **Q3 – Week boundaries and timezone**: Weeks start Monday 00:00 in the **account's IANA timezone** (`accounts.timezone`), converted to UTC for querying. Not ISO-UTC weeks.
+
+➡️ Yes. The seed gives you the timezone for a reason; a Chicago Monday starts at 05:00/06:00 UTC and a UTC-week cut would move Sunday-night events across weeks.
+
+---
+
+❓ **Q4 – Baseline definition**: "Typical" for a (location, event type) = **median** of the trailing **8 complete weeks** immediately before the viewed week (fewer if less history; "insufficient history" below 4 weeks). Median, not mean, so account 6's Jun 3 spike doesn't poison the following two months.
+
+➡️ Yes. 8 weeks is long enough to be stable at these volumes and short enough that the Feb start-of-data doesn't leave most weeks baseline-less. Same-weekday-adjusted or seasonal baselines are out (forecasting-adjacent and unneeded).
+
+---
+
+❓ **Q5 – Normality verdict and thresholds**: Each metric gets one of four statuses: `typical`, `above`, `below`, `insufficient_data`. Because counts are small, use a **combined relative + absolute tolerance**: flag only when the deviation from median is both ≥ 30% *and* ≥ max(3, ~1.5·√median) events. A median of 4 calls needs ≤1 or ≥7 to flag; a median of 40 needs ≤28 or ≥52. Thresholds live in one settings dict, not scattered.
+
+➡️ Yes. This kills the noise I measured (a 3→1 swing no longer fires) while still catching `15/Site B` 5→0 and the account 6 spike. Pure z-scores are unreliable with 8 points; pure percentages are unreliable with counts under 10.
+
+---
+
+❓ **Q6 – Metrics in scope**: v1 summary shows the three **counts** (calls received, leads created, appointments set) per period. Outcome-derived rates (missed-call %, no-show %, lead conversion %) are **not** in v1 — the data has no planted outcome anomalies, and rates on 4 calls/week are meaningless. Keep `outcome`/`duration_seconds` in the model, but don't build metrics on them yet.
+
+➡️ Yes, counts only. Rates can be added as a second metric family later without touching the rule engine shape, if the engine is designed metric-generic.
+
+---
+
+❓ **Q7 – Account-wide anomalies**: When a majority of locations (say ≥ 50% and ≥ 3) are flagged in the same direction on the same metric, the attention list should **collapse them into one account-level finding** ("Volume across all 15 locations was ~10× typical, concentrated on Jun 3") rather than listing 15 near-identical cards. Per-location findings remain only for locations deviating from the rest.
+
+➡️ Yes. This is the single most valuable rule for the multi-location persona and the only one that makes account 6 / week 23 readable. It's cheap once per-location verdicts exist.
+
+---
+
+❓ **Q8 – What a "needs attention" finding carries**: Each finding is a structured object: location, metric, direction, current value, baseline value, deviation, period, plus a `severity` (e.g. `warning` vs `critical` when a location drops to zero or ≥ 2× tolerance). The human-readable explanation is **generated from this object**, never the other way around.
+
+➡️ Yes. The structure is the contract between the rule engine, the API, the UI, the tests, and the optional LLM.
+
+---
+
+❓ **Q9 – Role of the LLM**: Three options: (a) LLM in the request path writes every explanation, (b) deterministic templates only, (c) deterministic template **always** produced; an LLM step, behind a feature flag with a provider key, rewrites the findings for a location into a friendlier 1–2 sentence summary, falling back silently to the template on timeout/error/no key.
+
+➡️ (c). The ticket makes the LLM optional ("fair game"), not required. (a) makes the demo depend on a key, adds latency to a dashboard, and makes tests nondeterministic. (c) shows the judgment of where it fits without betting the deliverable on it. If you pick (c): which provider/SDK do you have a key for, and is it acceptable for the LLM to receive only the structured findings (no raw events)?
+
+---
+
+❓ **Q10 – Hardcoded identity**: Which account is "the logged-in admin"? Default to **account 6 (Metro Collision Centers, 15 locations)** via env `DEFAULT_ACCOUNT_ID`, with an `X-Account-Id` header override so you can demo single-site (8, 13, 16, 19), the no-data account (20), and small-volume accounts.
+
+➡️ Yes. Account 6 exercises every path (many locations, planted spike, dark weeks).
+
+---
+
+❓ **Q11 – Location modeling**: Keep `location` as a string column on `activity_events` (matches the seed); the location list is `DISTINCT location` per account. No `Location` model/table in v1.
+
+➡️ Yes. A table would require inventing ids the seed doesn't have and gains nothing until locations get attributes.
+
+---
+
+❓ **Q12 – Seeding mechanism**: The file is `seed.txt` (raw `INSERT`s with explicit ids), not `seed.sql`. Options: (a) Postgres `docker-entrypoint-initdb.d` — but then Django migrations and the init script fight over who creates the tables; (b) a Django management command `seed_activity` that runs after `migrate`, executes the file statements inside `transaction.atomic()`, and resets the id sequences. Django models use `db_table = 'accounts'` / `'activity_events'` so the inserts hit the migrated tables unchanged.
+
+➡️ (b). Idempotent (`--flush` option), works with the ORM-owned schema, and is what the plan already intends.
+
+---
+
+❓ **Q13 – API shape**: Two read endpoints under `/api/v1/dashboard/`: `activity-summary?week_start=&location=` (counts + baseline + status per metric, for all locations or one) and `attention?week_start=` (account-level and per-location findings with explanations), plus `locations` for the selector (or embed it in the summary). Both backed by one `services/` module holding the aggregation + rules, so views stay thin per the backend rules.
+
+➡️ Yes, two endpoints + one service. One mega-endpoint couples the slow LLM path to the fast summary path; more than two is ceremony.
+
+---
+
+❓ **Q14 – Frontend scope**: Vite + React + TypeScript + TanStack Query + Tailwind. **Skip** React Router, Zustand, React Hook Form, shadcn for v1: one page, two selectors (week, location), two sections. Selector state lives in URL search params so a view is shareable.
+
+➡️ Yes. The frontend rules list a full stack, but the ticket says function over form and this is a single page.
+
+---
+
+❓ **Q15 – Vocabulary (for `GLOSSARY.md`)**: Proposed canonical terms, picking one word where the docs currently use several: **Account** (the customer; avoid "customer" in code), **Location** (avoid "site", "branch"), **Activity Event** (avoid "activity", "inbound event"), **Reporting Week** (the Mon–Sun period being viewed), **Baseline** (the "typical" value; avoid "historical", "normal numbers"), **Status** (`typical`/`above`/`below`/`insufficient_data`), **Finding** (one detected deviation; avoid "anomaly", "issue", "alert" — alerting is out of scope and that word will confuse), **Attention List** (the section listing findings). Once you confirm, I'll create `GLOSSARY.md` with these.
+
+➡️ Yes. The biggest one is avoiding "alert"/"anomaly": the first is explicitly out of scope, the second drifts toward ML language.
+
+---
+
+❓ **Q16 – Build order**: Reorder the plan so the risky core comes first and is tested in isolation: (1) models + seed command, (2) a pure, DB-free rules module (`compute_status`, `build_findings`, account rollup) with unit tests on hand-built fixtures, (3) aggregation queries against the seeded DB + API tests asserting the known seed signals (account 6 wk 23 collapses to one finding; `15/Site B` wk 30 flagged; account 20 → insufficient data), (4) UI, (5) optional LLM layer last.
+
+➡️ Yes. The current plan builds "location filters" and UI before anyone knows what "normal" means.
+
+---
+
+Round 2 will depend on these answers (exact status colors and severity ladder, response payload fields, LLM prompt contract, test matrix, Compose layout). Answer with numbers — "yes to all except Q9: (b)" is fine.
+
+## User
+
+<timestamp>Thursday, Nov 5, 2026, 1:04 AM (UTC-5)</timestamp>
+<system_notification>
+The following task has finished. If you were already aware, ignore this notification and do not restate prior responses.
+
+<task>
+kind: shell
+status: success
+task_id: 429502
+title: Locate grilling/domain-modeling skills and repo layout
+tool_call_id: toolu_01Y2gnrGGtpwJuic1h8Wap1h
+output_path: /Users/dyanac/.cursor/projects/Users-dyanac-Desarrollo-qualitara/terminals/429502.txt
+</task>
+</system_notification>
+<user_query>Briefly inform the user about the task result and perform any follow-up actions (if needed).</user_query>
+
+## Assistant
+
+That was the background filesystem search I started earlier to locate the `grilling` and `domain-modeling` skills. It finished, but I already resolved that need another way: both skills were fetched directly from the `mattpocock/skills` repo and their guidance is what shaped Round 1 above. No follow-up is required from it.
+
+The round of 16 questions stands as posted — answer with numbers when ready and I'll compute the next frontier.
+
+## User
+
+yes to all except Q1:(a) is ok; Q9:(b) is ok because the LLM is optional and we are not planning to implement it; Q10 I would prefer to have a selector in the header dashboard to choose a specific account so the account id will be send as part of the url request; Q12 we can convert the seed.txt file into 2 csv files then the command read each csv and do a batch create; Q13 yes but since we are going to send the account id on the requests the endpoints should include it; Q16 yes although the step (5) will be completely omitted.
+
+## Assistant
+
+Recorded. Q15 was confirmed, so per the domain-modeling discipline I'm writing `GLOSSARY.md` now rather than batching it, with the terms updated for your Q9/Q10 answers (no LLM term; the account selector means "Account" is now a user-facing concept too).
+
+### Tool Edit File V2
+
+## Assistant
+
+**Settled from Round 1:** Reference Date hardcoded to `2026-07-27`; week-only periods, default last complete week, partial week disabled; account-timezone Monday weeks; Baseline = median of trailing 8 complete weeks (min 4); combined relative+absolute Tolerance; three count Metrics only; Account-wide Findings; structured Findings with template explanations; **no LLM at all**; account selector in the header with the account id in the URL; `location` stays a string; CSV seed with `bulk_create`; two read endpoints nested under the account; trimmed frontend stack; build order rules → aggregation → API → UI.
+
+## Round 2
+
+❓ **Q1 – URL design with the account in the path**: 
+
+```
+GET /api/v1/accounts/                                   → selector: id, name, timezone, location_count
+GET /api/v1/accounts/{id}/locations/                    → names for the location selector
+GET /api/v1/accounts/{id}/dashboard/activity-summary/?week_start=2026-07-20&location=Site+B
+GET /api/v1/accounts/{id}/dashboard/attention/?week_start=2026-07-20
+```
+
+`week_start` is the Monday date (omitted → default Reporting Week); `location` omitted → whole Account. Unknown account → 404; `week_start` not a Monday, or a week not yet complete at the Reference Date → 400 with the unified error shape. Frontend mirrors it in search params: `?account=6&week=2026-07-20&location=Site+B`.
+
+➡️ Yes.
+
+---
+
+❓ **Q2 – Activity Summary payload**: One object for the requested scope, no per-location breakdown (the Attention List covers that):
+
+```json
+{
+  "success": true,
+  "data": {
+    "account_id": 6,
+    "week_start": "2026-07-20", "week_end": "2026-07-26",
+    "location": null,
+    "baseline_weeks_used": 8,
+    "metrics": [
+      { "event_type": "call_received", "current": 61, "baseline": 66,
+        "delta": -5, "delta_pct": -7.6, "status": "typical" },
+      ...
+    ]
+  }
+}
+```
+
+Account-level Status uses the same rule on account totals (median of the weekly *sums*, not sum of location medians).
+
+➡️ Yes. Errors follow the backend rules' `{success:false, message, errors, error_code}` envelope.
+
+---
+
+❓ **Q3 – Tolerance and Severity constants**: Status is not `typical` when `|current − baseline| ≥ max(3, 0.30·baseline, 1.5·√baseline)`. Severity: `critical` when the deviation is ≥ 2× that tolerance **or** current is 0 with baseline ≥ 3; otherwise `warning`. All five numbers live in one `DASHBOARD_RULES` settings dict.
+
+➡️ Yes. On the seed this makes the default week for account 6 quiet, flags `15/Site B` calls 5→0 as `critical`, and makes the Jun 3 spike `critical` everywhere (then collapsed by Q5).
+
+---
+
+❓ **Q4 – Meaning of `above`**: Inbound volume going *up* is still a Finding (it may be a data feed problem, as the account 6 spike looks like), but it isn't bad news. Render `typical` green, `below` red, `above` amber, `insufficient_data` grey; Findings in both directions, with wording that doesn't say "problem" for `above`.
+
+➡️ Yes.
+
+---
+
+❓ **Q5 – Account-wide Finding rule**: For a given Metric and direction, if ≥ 50 % of the Account's active Locations **and** at least 3 Locations are non-typical, emit one Account-wide Finding and suppress those per-Location Findings; Locations deviating the *other* way stay listed. Single- and two-location Accounts never roll up. Explanation names the count ("14 of 15 locations") and, when > 60 % of the week's events fall on one day, that day.
+
+➡️ Yes. The one-day detail is cheap (daily counts are already needed for nothing else, so it's one extra `TruncDay` query only for account-wide Findings) and is exactly what turns "10× volume" into "something happened on Jun 3".
+
+---
+
+❓ **Q6 – Location universe and "went dark"**: The Locations considered for a Reporting Week are those with any Activity Event in the Baseline Window ∪ the viewed week (not all-time). A Location with Baseline activity and **zero events of any type** in the viewed week produces one `critical` "no activity" Finding instead of three per-Metric `below` Findings. The locations selector lists all-time distinct names.
+
+➡️ Yes. This catches `6/Site G` dark weeks without triple-reporting.
+
+---
+
+❓ **Q7 – `insufficient_data` semantics**: A Metric gets `insufficient_data` when fewer than 4 complete weeks exist in the Baseline Window (data starts Feb 2, so weeks before Mar 2 show it — a visible edge case rather than a hidden one). A Baseline of 0 with current 0 is `typical`; a Baseline of 0 with current ≥ 3 is `above` (absolute floor handles it). The week picker allows all complete weeks back to Feb 2. Account 20 (no events) shows `insufficient_data` everywhere and an empty Attention List with an explanatory empty state.
+
+➡️ Yes.
+
+---
+
+❓ **Q8 – Backend layout** (per the backend rules):
+
+```
+backend/
+  config/settings/{base,development}.py
+  core/{responses,exceptions,pagination}.py
+  accounts/models.py            # Account  (db_table='accounts')
+  activity/models.py            # ActivityEvent (db_table='activity_events', TextChoices for type/outcome)
+  activity/managers.py          # weekly_counts(account, weeks, location) using TruncWeek(tzinfo=account tz)
+  activity/services/{periods,baseline,rules,findings,explanations}.py   # pure, DB-free except the aggregation entry point
+  activity/management/commands/seed_activity.py
+  api/v1/{accounts,dashboard}/{urls,views,serializers}.py
+  seed/{accounts.csv,activity_events.csv,convert_seed.py}
+```
+
+Indexes: `(account, occurred_at)` and `(account, location, event_type, occurred_at)`.
+
+➡️ Yes. Views only parse params and call one service function.
+
+---
+
+❓ **Q9 – Seed details**: `convert_seed.py` is a one-off committed for reproducibility; the CSVs are committed too; `seed.txt` is moved to `backend/seed/` (or deleted?) rather than left at the repo root. `seed_activity` keeps the original ids (so test assertions can cite them), uses `bulk_create(batch_size=1000)` inside `transaction.atomic()`, resets the Postgres sequences afterwards, and is idempotent (`--flush` to reload; otherwise skips when `accounts` is non-empty). Empty CSV cells → `NULL`.
+
+➡️ Yes, keep `seed.txt` moved into `backend/seed/` as the source of truth for the converter. Say if you'd rather delete it.
+
+---
+
+❓ **Q10 – Test matrix**: `pytest` + `pytest-django`. (a) Unit tests for `periods`, `baseline`, `rules`, `findings`, `explanations` with hand-built inputs, no DB, covering: tiny counts not flagging, zero→critical, median ignoring one spike, rollup thresholds, timezone week edges (Sunday 23:30 Chicago ≠ Monday UTC). (b) API tests on a small handcrafted fixture (2 accounts, 3 locations, 10 weeks). (c) One "golden" test that loads the full CSVs once per session and asserts the known seed signals: account 6 wk 2026-06-01 → exactly one Account-wide Finding; `15/Site B` wk 07-20 → critical; account 20 → insufficient everywhere. Frontend: Vitest + RTL for the status→color mapping and the empty/insufficient states only.
+
+➡️ Yes.
+
+---
+
+❓ **Q11 – Compose and runtime**: `docker-compose.yml` with `db` (postgres:16), `api` (Python 3.12, Django 5.x, DRF, psycopg 3; entrypoint runs `migrate` then `seed_activity` then `runserver`), `web` (Node 20, Vite dev server, proxying `/api` to `api`). `.env.example` with `DATABASE_URL`, `DJANGO_SECRET_KEY`, `VITE_API_BASE_URL`. Dependency management: `uv` for Python, `npm` for Node.
+
+➡️ Yes. Tell me if you prefer `pip`/`requirements.txt` or `pnpm`.
+
+---
+
+❓ **Q12 – Frontend structure**: `frontend/src/` with `api/` (typed fetchers + TanStack Query hooks keyed `['accounts']`, `['summary', accountId, week, location]`, `['attention', accountId, week]`), `features/dashboard/` (`dashboard-page.tsx`, `account-selector.tsx`, `week-picker.tsx`, `location-selector.tsx`, `activity-summary.tsx`, `attention-list.tsx`, `status-badge.tsx`), `lib/url-state.ts`. Changing the account resets the location param and keeps the week.
+
+➡️ Yes.
+
+---
+
+❓ **Q13 – Deliverable of this session**: When the frontier is empty I rewrite `PLAN.md` into the refined plan (decisions, rules with constants, API contract, build order with acceptance checks per step), keep `GLOSSARY.md` in sync, and write two ADRs that meet the hard-to-reverse / surprising / real-trade-off bar: *"Baseline is a median over trailing complete weeks with a combined tolerance"* and *"Dashboard verdicts are deterministic rules; no LLM"*. The spec/tickets under `.scratch/` are left for `/to-spec` if you want them later.
+
+➡️ Yes.
+
+## User
+
+yes to all except Q10 go (a); Q11 go uv and npm, we can create a MAKEFILE with a command to run migrate and seed_activity, a command to run services, a command to run the tests; Q13 we can keep intact PLAN.md and create a another file to store the refined plan
+
+## Assistant
+
+Noted: unit tests only (Q10a), `uv` + `npm` + a Makefile (Q11), `PLAN.md` untouched with the refined plan in a separate file (Q13). The decisions of Q11 and Q13 each open one small fork, so a short final round before I write anything.
+
+## Round 3
+
+❓ **Q1 – Makefile targets run through Compose, not the host**: 
+
+```
+make up       # docker compose up -d db api web
+make setup    # docker compose run --rm api uv run python manage.py migrate && ... seed_activity
+make test     # docker compose run --rm api uv run pytest   +   docker compose run --rm web npm test
+make down     # docker compose down -v
+```
+
+The `api` container's command is just `runserver`; migrations and seeding happen only via `make setup` (idempotent, so re-running is safe). No host Python/Node required beyond Docker.
+
+➡️ Yes. The alternative (targets calling `uv run` / `npm` directly on the host, Compose only for Postgres) is faster for day-to-day dev but means two install paths to document; say so if you prefer it and I'll make `make setup-local` / `make test-local` variants.
+
+---
+
+❓ **Q2 – Name of the refined plan file**: `PLAN_REFINED.md` at the repo root, next to `PLAN.md`, opening with a short "changes from PLAN.md and why" section so the diff in thinking is visible.
+
+➡️ Yes.
+
+---
+
+❓ **Q3 – Shared understanding check**: The complete design tree, as I'll write it:
+
+- **Scope**: one page; Activity Summary + Attention List; account selector, week picker, location selector, all in URL state. No auth, no LLM, no alerting, no rates.
+- **Time**: Reference Date `2026-07-27`; Mon–Sun Reporting Weeks in the Account's timezone; default = last complete week; partial week not selectable; picker back to `2026-02-02`.
+- **Baseline**: median of trailing 8 complete weeks per (scope, Event Type); `insufficient_data` under 4; account scope uses weekly sums.
+- **Verdict**: Tolerance `max(3, 0.30·b, 1.5·√b)`; `critical` at 2× tolerance or zero-with-baseline≥3; `above` amber, `below` red, `typical` green, grey for insufficient.
+- **Findings**: per-Location per-Metric; "no activity" collapses a dark Location; Account-wide Finding at ≥50 % and ≥3 Locations same direction, with one-day concentration callout; template explanations from the Finding object.
+- **Data**: `Account`, `ActivityEvent` on the seed table names; `location` as string; CSVs + converter + `seed_activity` (`bulk_create`, ids preserved, sequences reset, `--flush`).
+- **API**: `accounts/`, `accounts/{id}/locations/`, `accounts/{id}/dashboard/activity-summary/`, `accounts/{id}/dashboard/attention/`; unified envelopes; 400/404 as specified.
+- **Code**: backend layout from Round 2 Q8, frontend layout from Q12; Vite + React + TS + TanStack Query + Tailwind only.
+- **Quality**: DB-free unit tests for `periods`/`baseline`/`rules`/`findings`/`explanations`; Vitest for status rendering and empty states. No API or golden tests (accepted gap: the seed-level signals are checked by hand against the running app, and the plan will list them as a manual acceptance checklist).
+- **Build order**: models + seed → pure rules + tests → aggregation + endpoints → UI → manual acceptance against the seed signals.
+- **Docs**: `GLOSSARY.md` (written), `PLAN_REFINED.md`, ADR-0001 baseline/tolerance, ADR-0002 deterministic rules without LLM.
+
+➡️ Yes — on confirmation I write `PLAN_REFINED.md` and the two ADRs and stop there; no implementation starts in this session.
+
+## User
+
+yes to all except Q1 we can separate the test commands for back and front
+
+## Assistant
+
+Frontier is empty. Before writing the plan I'm running the agreed rules against the seed (with proper account-timezone weeks) so the acceptance checklist in the plan cites real numbers rather than my earlier UTC-week estimates.
+
+### Tool Run Terminal Command V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+## Assistant
+
+Grilling complete; the frontier is empty and the deliverables are written. No implementation was started.
+
+**Files created**
+
+- `PLAN_REFINED.md` — the refined plan: a changes-from-`PLAN.md` table, fixed data facts, every decision from the three rounds (time, Baseline, Tolerance constants as a `DASHBOARD_RULES` dict, the `Finding` dataclass contract, explanation templates, data model, seed pipeline, API contract with payloads and error codes, code layout, Makefile with separate `test-api` / `test-web`), the unit-test matrix, a manual acceptance checklist, and a six-step build order with a check per step. `PLAN.md` is untouched.
+- `GLOSSARY.md` — the vocabulary agreed in Round 1 Q15 (Account, Location, Activity Event, Reporting Week, Reference Date, Baseline, Tolerance, Status, Finding, Severity, No-activity Finding, Account-wide Finding, Attention List, Activity Summary), each with the synonyms to avoid.
+- `docs/adr/0001-median-baseline-with-combined-tolerance.md` and `docs/adr/0002-deterministic-findings-without-llm.md`.
+
+**Two refinements recorded in the plan that came out of simulating the agreed rules on the seed** (both are the straightforward reading of what we agreed, so I didn't reopen them):
+
+- An Account with no events in the window ∪ viewed week is `insufficient_data` everywhere; without that rule account 20 would read as `typical` (0 vs 0).
+- Account-wide Findings in the same direction across several Metrics merge into one; otherwise account 6 / Jun 1 shows three near-identical account-level cards.
+
+**Worth knowing before you start**
+
+- The acceptance checklist in §3.13 uses numbers from a simulation with proper account-timezone weeks, so it should match the real implementation; if a number differs, suspect the week-boundary code first.
+- With unit tests only (your Q10 choice), §3.13 is the sole check of the end-to-end path. If you later want one cheap safety net, a single API test loading the CSVs and asserting the account 6 / Jun 1 row would cover most of the risk.
+- `seed.txt` is still at the repo root; the plan moves it to `backend/seed/` in build step 2.
+
+## User
+
+thinking better, we can add API tests on a small handcrafted fixture (2 accounts, 3 locations, 10 weeks). Update this where is required
+
+### Tool Ripgrep Raw Search
+
+```
+{"pattern":"unit only|No API or end-to-end|API tests|Check: `curl`|Frontend, Vitest|manual checklist|Manual acceptance checklist|pytest-django","path":"/Users/dyanac/Desarrollo/qualitara/PLAN_REFINED.md","outputMode":"content","caseInsensitive":false,"multiline":false,"toolCallId":"toolu_01E34T9PG7ef2WoKiD3j7Xg7","offset":0}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/PLAN_REFINED.md","offset":213,"limit":18}
+```
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+## Assistant
+
+Updated `PLAN_REFINED.md` in the four places the decision touches:
+
+- **§3.12 Tests** — retitled (no longer "unit only") and given a new "Backend API tests" block: the handcrafted fixture is specified concretely (Account `A` in `America/Chicago` with `North`/`South`/`East`, Account `B` in `UTC` with no events, 10 weeks of steady volume, and three planted signals: `South` dark in the default week, `North` 12 calls, and an account-wide 4× spike in week 6 that must not move later Baselines). The assertions per endpoint cover the happy paths, every 400/404 case, the `insufficient_data` account, the Sunday-23:30 timezone edge, the envelopes, and a `django_assert_num_queries` budget so per-Location work can't go N+1.
+- **§3.10 Code layout** — `tests/conftest.py` (fixture factory) plus `tests/unit/` and `tests/api/`.
+- **§4 Build order, step 4** — the fixture and API tests are part of the aggregation/API step; its check is now `make test-api` green before the manual `curl` pass.
+- **§5 Known limitations** — now reads "no end-to-end tests and no tests against the full seed", since the API tests close the previous gap.
+
+`GLOSSARY.md` and the ADRs needed no change. The Makefile targets stay as agreed (`test-api` already runs the whole backend suite).
+
+## User
+
+/to-spec
+
+## Assistant
+
+Per the skill, before writing the spec I need to confirm the test seams. The codebase is empty, so every seam is new; I'm proposing the fewest that still cover what we agreed.
+
+### Tool Ask Question
+
+### Tool Edit File V2
+
+## Assistant
+
+Spec published to the local issue tracker at `.scratch/dash-247-is-this-normal/spec.md` with `Status: ready-for-agent`, per `docs/agents/issue-tracker.md` and the triage vocabulary.
+
+What it contains, synthesised from the grilling session without re-interviewing:
+
+- **Problem / Solution** from the Customer Admin's perspective, in `GLOSSARY.md` vocabulary.
+- **50 user stories** across viewing the summary, choosing what to look at, finding Locations that need attention, trusting the verdicts, robustness, and operating the application.
+- **Implementation decisions** covering identity, time, Metrics/Baseline/Status, Findings, data model and seed, API contract, backend and frontend architecture, and tooling. No file paths; the only inlined snippets are the rule constants and the Finding shape, both marked as coming from the seed simulation, as the skill's exception allows.
+- **Testing decisions** on the three seams you confirmed (HTTP API primary over the handcrafted fixture, pure services for the enumerated tables, React components for states), with the explicit note that there is no prior art because the repo is empty, and that the full-seed signals stay a manual checklist in `PLAN_REFINED.md`.
+- **Out of scope** and **Further notes**, including the ADR-0002 constraint on any future LLM layer.
+
+Next step when you're ready is `/to-tickets` against this spec to break it into `.scratch/dash-247-is-this-normal/issues/NN-*.md`, following the six-step build order in `PLAN_REFINED.md`.
+
+## User
+
+/to-tickets
+
+## Assistant
+
+Proposed breakdown. The repo is empty, so the first ticket is the "make the change easy" step; everything after it is a tracer bullet through schema, API, UI and tests. The chain is linear because each slice genuinely needs the previous one's output.
+
+1. **Runnable skeleton** — Blocked by: none. Delivers: `make up` serves the API root (unified envelope, custom exception handler, 404/400 shapes) and a Vite page that calls it; `make test-api` and `make test-web` run one passing test each; `.env.example`, Compose with `db`/`api`/`web`, `uv` and `npm` wired.
+
+2. **Seeded Accounts and Locations with header selectors** — Blocked by: 1. Delivers: Account and Activity Event models on the seed table names with indexes; converter + CSVs + idempotent `seed_activity` (ids preserved, sequences reset, `--flush`); `GET accounts/` and `GET accounts/{id}/locations/`; Account selector (name + location count) and Location selector in the header, state in URL, Location resets on Account change. API tests over the handcrafted fixture factory (introduced here) for both endpoints; `make setup` loads 20 / 12,626 rows.
+
+3. **Activity Summary counts for a Reporting Week** — Blocked by: 2. Delivers: Reference Date constant, week boundaries in the Account's timezone, default week, picker range, rejection of non-Monday / too-early / incomplete weeks; the grouped weekly-counts query; `activity-summary/` returning current counts per Metric for the Account or one Location (Baseline/Status fields present but `insufficient_data` until ticket 4); week picker in the UI; summary section with loading/error states; Sunday-23:30 timezone test; query budget test.
+
+4. **Baseline and Status verdicts** — Blocked by: 3. Delivers: Baseline Window and median, Tolerance and Status rules as pure modules driven by the `DASHBOARD_RULES` dict, account-with-no-events → `insufficient_data`, Status/colour badges and "insufficient data" state in the summary. Pure-module tests (tolerance table, noise guard, median vs spike, clipping, min weeks), API tests (North `above`, Account B insufficient, baseline weeks used), badge colour tests.
+
+5. **Attention List with per-Location Findings** — Blocked by: 4. Delivers: Finding object, per-Location Metric Findings, No-activity Finding, Severity, ordering, template explanations; `attention/` endpoint; Attention List section with critical/warning styling, explicit empty and insufficient states. Tests: golden explanation strings, API default-week expectations (South critical no-activity, North warning), Account B empty, query budget.
+
+6. **Account-wide Findings** — Blocked by: 5. Delivers: rollup thresholds, opposite-direction survivors, multi-Metric merge, one-day concentration query and callout, distinct Account-wide card at the top of the list. Tests: 3/5 fires, 2/5 doesn't, 1–2 Locations never, merge, API week-6 spike → one Account-wide Finding and no per-Location ones.
+
+7. **Acceptance pass and README** — Blocked by: 6. Delivers: the manual acceptance checklist from `PLAN_REFINED.md` §3.13 executed against the seeded app with any discrepancies fixed; README with the `make` workflow, decisions pointer to the ADRs, and known limitations.
+
+### Tool Ask Question
+
+## Assistant
+
+Splitting 3 into "Reporting Week selection and validation" and "Activity Summary counts", which makes eight tickets. Publishing them now in dependency order.
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+### Tool Edit File V2
+
+## Assistant
+
+Eight tickets published under `.scratch/dash-247-is-this-normal/issues/`, all `Status: ready-for-agent`, numbered in dependency order (a strictly linear chain):
+
+| # | Ticket | Blocked by |
+|---|---|---|
+| 01 | `01-runnable-skeleton.md` — Compose, Makefile, envelope + exception handler, Vite app, one passing test each side | none |
+| 02 | `02-seeded-accounts-and-selectors.md` — models on seed table names, CSV seed pipeline, `accounts/` + `locations/`, header selectors in URL, handcrafted fixture factory | 01 |
+| 03 | `03-reporting-week-selection.md` — Reference Date, periods module, week picker, `activity-summary/` validation (no metrics yet) | 02 |
+| 04 | `04-activity-summary-counts.md` — grouped weekly-counts query, current counts per Metric, summary cards, timezone and query-budget tests | 03 |
+| 05 | `05-baseline-and-status.md` — `DASHBOARD_RULES`, median Baseline, Tolerance/Status/Severity, coloured badges, no-history rule | 04 |
+| 06 | `06-attention-list-per-location.md` — Finding object, per-Location and No-activity Findings, templates, `attention/`, Attention List UI | 05 |
+| 07 | `07-account-wide-findings.md` — rollup, merge, one-day concentration query, top-of-list card | 06 |
+| 08 | `08-acceptance-pass-and-readme.md` — §3.13 checklist against the real seed, README, cleanup | 07 |
+
+Each file follows the local template (what to build from the Customer Admin's perspective, blockers, status, acceptance checkboxes), points at the spec and the relevant `PLAN_REFINED.md` sections and ADRs, uses glossary vocabulary, and avoids file paths and code. The spec and `PLAN.md` were not modified.
+
+The frontier is ticket 01; `/implement-spec` or `/implement` can start there.

@@ -1,0 +1,362 @@
+# Specification implementation 01
+
+## User
+
+/implement-spec  just go with 01
+
+### Tool Run Terminal Command V2
+
+```
+{"command":"cd /Users/dyanac/Desarrollo/qualitara && cat docs/agents/issue-tracker.md; ls -R .scratch | head -80; git status 2>&1 | head -3","workingDirectory":"","timeout":30000,"toolCallId":"toolu_01A7grLMU1koL9VRq1Po62Hz","simpleCommands":["cd","cat","ls","head","git","head"],"hasInputRedirect":false,"hasOutputRedirect":true,"parsingResult":{"parsingFailed":false,"executableCommands":[{"name":"cd","args":[{"type":"word","value":"/Users/dyanac/Desarrollo/qualitara"}],"fullText":"cd /Users/dyanac/Desarrollo/qualitara"},{"name":"cat","args":[{"type":"word","value":"docs/agents/issue-tracker.md"}],"fullText":"cat docs/agents/issue-tracker.md"},{"name":"ls","args":[{"type":"word","value":"-R"},{"type":"word","value":".scratch"}],"fullText":"ls -R .scratch"},{"name":"head","args":[{"type":"number","value":"-80"}],"fullText":"head -80"},{"name":"git","args":[{"type":"word","value":"status"}],"fullText":"git status"},{"name":"head","args":[{"type":"number","value":"-3"}],"fullText":"head -3"}],"hasRedirects":true,"hasCommandSubstitution":false,"allRedirectsAreDevNull":true,"redirects":[{"operator":">&","destinationFds":[2],"targetNodeType":"number","targetText":"1"}]},"requestedSandboxPolicy":{"type":"TYPE_WORKSPACE_READWRITE","networkAccess":false,"additionalReadwritePaths":["/Users/dyanac/Desarrollo/qualitara"],"additionalReadonlyPaths":[],"enableSharedBuildCache":true,"readBoundary":"READ_BOUNDARY_MODE_UNSPECIFIED","additionalReadPaths":[]},"fileOutputThresholdBytes":"40000","isBackground":false,"skipApproval":false,"timeoutBehavior":"TIMEOUT_BEHAVIOR_BACKGROUND","hardTimeout":86400000,"closeStdin":true,"conversationId":"b33ddaf4-a998-4b5a-9149-60f4aff21c05","adminCommandDenylist":[],"requestId":"13801f0c-4cde-4f99-bde5-dd5915d46c57","smartModeClassifierAllowed":false}
+```
+
+### Tool Run Terminal Command V2
+
+```
+{"command":"cd /Users/dyanac/Desarrollo/qualitara && cat .scratch/dash-247-is-this-normal/spec.md .scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md; head -8 .scratch/dash-247-is-this-normal/issues/0[2-8]*.md; ls -a; git log --oneline | head -5; git branch -a; cat GLOSSARY.md | head -50; ls docs/adr","workingDirectory":"","timeout":30000,"toolCallId":"toolu_01Fjfvy4VELtkG6ZQswg2vqu","simpleCommands":["cd","cat","head","ls","git","head","git","cat","head","ls"],"hasInputRedirect":false,"hasOutputRedirect":false,"parsingResult":{"parsingFailed":false,"executableCommands":[{"name":"cd","args":[{"type":"word","value":"/Users/dyanac/Desarrollo/qualitara"}],"fullText":"cd /Users/dyanac/Desarrollo/qualitara"},{"name":"cat","args":[{"type":"word","value":".scratch/dash-247-is-this-normal/spec.md"},{"type":"word","value":".scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md"}],"fullText":"cat .scratch/dash-247-is-this-normal/spec.md .scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md"},{"name":"head","args":[{"type":"number","value":"-8"},{"type":"concatenation","value":".scratch/dash-247-is-this-normal/issues/0[2-8]*.md"}],"fullText":"head -8 .scratch/dash-247-is-this-normal/issues/0[2-8]*.md"},{"name":"ls","args":[{"type":"word","value":"-a"}],"fullText":"ls -a"},{"name":"git","args":[{"type":"word","value":"log"},{"type":"word","value":"--oneline"}],"fullText":"git log --oneline"},{"name":"head","args":[{"type":"number","value":"-5"}],"fullText":"head -5"},{"name":"git","args":[{"type":"word","value":"branch"},{"type":"word","value":"-a"}],"fullText":"git branch -a"},{"name":"cat","args":[{"type":"word","value":"GLOSSARY.md"}],"fullText":"cat GLOSSARY.md"},{"name":"head","args":[{"type":"number","value":"-50"}],"fullText":"head -50"},{"name":"ls","args":[{"type":"word","value":"docs/adr"}],"fullText":"ls docs/adr"}],"hasRedirects":false,"hasCommandSubstitution":false,"redirects":[]},"requestedSandboxPolicy":{"type":"TYPE_WORKSPACE_READWRITE","networkAccess":false,"additionalReadwritePaths":["/Users/dyanac/Desarrollo/qualitara"],"additionalReadonlyPaths":[],"enableSharedBuildCache":true,"readBoundary":"READ_BOUNDARY_MODE_UNSPECIFIED","additionalReadPaths":[]},"fileOutputThresholdBytes":"40000","isBackground":false,"skipApproval":false,"timeoutBehavior":"TIMEOUT_BEHAVIOR_BACKGROUND","hardTimeout":86400000,"closeStdin":true,"conversationId":"b33ddaf4-a998-4b5a-9149-60f4aff21c05","adminCommandDenylist":[],"requestId":"13801f0c-4cde-4f99-bde5-dd5915d46c57","smartModeClassifierAllowed":false}
+```
+
+### Tool Run Terminal Command V2
+
+```
+{"command":"cd /Users/dyanac/Desarrollo/qualitara && git checkout -b dash-247-integration && git status --short | head; sed -n 1,12p .scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md","workingDirectory":"","timeout":30000,"toolCallId":"toolu_01YPMio1J7ZQ2JJQUEjFMAzH","simpleCommands":["cd","git","git","head","sed"],"hasInputRedirect":false,"hasOutputRedirect":false,"parsingResult":{"parsingFailed":false,"executableCommands":[{"name":"cd","args":[{"type":"word","value":"/Users/dyanac/Desarrollo/qualitara"}],"fullText":"cd /Users/dyanac/Desarrollo/qualitara"},{"name":"git","args":[{"type":"word","value":"checkout"},{"type":"word","value":"-b"},{"type":"word","value":"dash-247-integration"}],"fullText":"git checkout -b dash-247-integration"},{"name":"git","args":[{"type":"word","value":"status"},{"type":"word","value":"--short"}],"fullText":"git status --short"},{"name":"head","args":[],"fullText":"head"},{"name":"sed","args":[{"type":"word","value":"-n"},{"type":"word","value":"1,12p"},{"type":"word","value":".scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md"}],"fullText":"sed -n 1,12p .scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md"}],"hasRedirects":false,"hasCommandSubstitution":false,"redirects":[]},"requestedSandboxPolicy":{"type":"TYPE_WORKSPACE_READWRITE","networkAccess":false,"additionalReadwritePaths":["/Users/dyanac/Desarrollo/qualitara"],"additionalReadonlyPaths":[],"enableSharedBuildCache":true,"readBoundary":"READ_BOUNDARY_MODE_UNSPECIFIED","additionalReadPaths":[]},"fileOutputThresholdBytes":"40000","isBackground":false,"skipApproval":false,"timeoutBehavior":"TIMEOUT_BEHAVIOR_BACKGROUND","hardTimeout":86400000,"closeStdin":true,"conversationId":"b33ddaf4-a998-4b5a-9149-60f4aff21c05","adminCommandDenylist":[],"requestId":"13801f0c-4cde-4f99-bde5-dd5915d46c57","smartModeClassifierAllowed":false}
+```
+
+## Assistant
+
+Only ticket 01 is in scope, so the frontier is just that one ticket. I'm starting a single implementer in its own worktree.
+
+### Tool New agent
+
+```
+{"description":"Implement ticket 01 skeleton","prompt":"Implement ticket 01 of the DASH-247 spec.\n\nTicket: /Users/dyanac/Desarrollo/qualitara/.scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md (follow its acceptance criteria exactly).\nSpec: .scratch/dash-247-is-this-normal/spec.md. Decisions: PLAN_REFINED.md §3.9, §3.10, §3.11. Also read AGENTS.md, GLOSSARY.md, docs/adr/, and .cursor/rules/backend-rules.mdc.\n\nInstructions:\n- Your worktree must be based on the integration branch `dash-247-integration` (local branch, one commit ahead of main is NOT the case: it equals main's tip e4a2319 plus nothing). Verify with git log; if not based on it, reset onto `dash-247-integration`.\n- Call the Skill tool / read the skill at /Users/dyanac/Desarrollo/qualitara/.agents/skills/tdd/SKILL.md and build the ticket test-first (one DRF test via pytest + pytest-django; one Vitest + Testing Library test).\n- User style rules: Python uses single quotes; Go would use double quotes; keep existing file indentation. Frontend: single quotes, 2-space indent, kebab-case files.\n- Verify for real: run `make test-api` and `make test-web` (Docker may be needed; if Docker is unavailable, run the tests locally with uv / npm and say so). Also try `make up` if feasible.\n- Commit your work on your branch with a clear message. Do not mark the ticket status; the orchestrator does that.\n- Before reporting done, merge the tip of `dash-247-integration` into your branch.\n- Report: branch name, worktree path, commit hash, how each acceptance criterion was verified, and anything not verified.","subagentType":{"custom":{"name":"best-of-n-runner"}},"model":"claude-sonnet-5-5-high","agentId":"c59f376d-8432-4515-80ec-92396c07e624","attachments":[],"mode":"TASK_MODE_UNSPECIFIED","respondingToMessageIds":[],"environment":"SUBAGENT_EXECUTION_ENVIRONMENT_UNSPECIFIED","machine":{"sameMachine":{}}}
+```
+
+### Tool Run Terminal Command V2
+
+```
+{"command":"cd /Users/dyanac/Desarrollo/qualitara && git merge --ff-only dash-247-01-skeleton && git log --oneline | head -3 && git status --short | head","workingDirectory":"","timeout":30000,"toolCallId":"toolu_01Drhm57SQgfvadYznCgj85i","simpleCommands":["cd","git","git","head","git","head"],"hasInputRedirect":false,"hasOutputRedirect":false,"parsingResult":{"parsingFailed":false,"executableCommands":[{"name":"cd","args":[{"type":"word","value":"/Users/dyanac/Desarrollo/qualitara"}],"fullText":"cd /Users/dyanac/Desarrollo/qualitara"},{"name":"git","args":[{"type":"word","value":"merge"},{"type":"word","value":"--ff-only"},{"type":"word","value":"dash-247-01-skeleton"}],"fullText":"git merge --ff-only dash-247-01-skeleton"},{"name":"git","args":[{"type":"word","value":"log"},{"type":"word","value":"--oneline"}],"fullText":"git log --oneline"},{"name":"head","args":[{"type":"number","value":"-3"}],"fullText":"head -3"},{"name":"git","args":[{"type":"word","value":"status"},{"type":"word","value":"--short"}],"fullText":"git status --short"},{"name":"head","args":[],"fullText":"head"}],"hasRedirects":false,"hasCommandSubstitution":false,"redirects":[]},"requestedSandboxPolicy":{"type":"TYPE_WORKSPACE_READWRITE","networkAccess":false,"additionalReadwritePaths":["/Users/dyanac/Desarrollo/qualitara"],"additionalReadonlyPaths":[],"enableSharedBuildCache":true,"readBoundary":"READ_BOUNDARY_MODE_UNSPECIFIED","additionalReadPaths":[]},"fileOutputThresholdBytes":"40000","isBackground":false,"skipApproval":false,"timeoutBehavior":"TIMEOUT_BEHAVIOR_BACKGROUND","hardTimeout":86400000,"closeStdin":true,"conversationId":"b33ddaf4-a998-4b5a-9149-60f4aff21c05","adminCommandDenylist":[],"requestId":"13801f0c-4cde-4f99-bde5-dd5915d46c57","smartModeClassifierAllowed":false}
+```
+
+### Tool Read File V2
+
+```
+{"path":"/Users/dyanac/Desarrollo/qualitara/.agents/skills/code-review/SKILL.md"}
+```
+
+### Tool New agent
+
+```
+{"description":"Standards review","prompt":"Repo: /Users/dyanac/Desarrollo/qualitara. Review diff `git diff main...HEAD` (branch dash-247-integration; commit 12d6a56). Read-only: do not modify files.\nStandards sources: .cursor/rules/backend-rules.mdc, AGENTS.md, GLOSSARY.md, docs/adr/, plus user style rules: Python uses single quotes, don't shift tab/indent style; frontend: single quotes, 2-space indent, kebab-case files.\nAlso check these Fowler smells as judgement calls only (repo standards override): Mysterious Name, Duplicated Code, Feature Envy, Data Clumps, Primitive Obsession, Repeated Switches, Shotgun Surgery, Divergent Change, Speculative Generality, Message Chains, Middle Man, Refused Bequest.\nReport, per file/hunk, (a) violations of documented standards (cite rule; hard vs judgement) and (b) smells (name + quote hunk). Skip anything tooling enforces. Under 400 words.","subagentType":{"unspecified":{}},"model":"claude-sonnet-5-5-high","agentId":"3ce4560e-6cf8-4b40-84dd-6fb7679e966c","attachments":[],"mode":"TASK_MODE_UNSPECIFIED","respondingToMessageIds":[],"environment":"SUBAGENT_EXECUTION_ENVIRONMENT_UNSPECIFIED","machine":{"sameMachine":{}}}
+```
+
+### Tool New agent
+
+```
+{"description":"Spec review","prompt":"Repo: /Users/dyanac/Desarrollo/qualitara. Review diff `git diff main...HEAD` (branch dash-247-integration; commit 12d6a56) against the ticket at .scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md (only ticket 01 is in scope; later tickets are intentionally not built), the spec .scratch/dash-247-is-this-normal/spec.md, and PLAN_REFINED.md §3.9-3.11. Read-only: do not modify files.\nReport: (a) requirements missing or partial; (b) behaviour not asked for (scope creep); (c) requirements that look implemented but look wrong. Quote the ticket line for each finding. Under 400 words.","subagentType":{"unspecified":{}},"model":"claude-sonnet-5-5-high","agentId":"874e4a00-288b-4648-9511-2eddc18661b5","attachments":[],"mode":"TASK_MODE_UNSPECIFIED","respondingToMessageIds":[],"environment":"SUBAGENT_EXECUTION_ENVIRONMENT_UNSPECIFIED","machine":{"sameMachine":{}}}
+```
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+Worktree is outside the workspace, so the sandbox blocks removal; retrying unsandboxed.
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+Ticket 01 (runnable skeleton) is done and merged on the `dash-247-integration` branch. I read "just go with 01" as "only ticket 01", so tickets 02–08 are untouched.
+
+- **Tests:** `make test-api` passes with 4 tests and `make test-web` with 2, both in Docker. The implementer ran `make up` and checked the Vite `/api` proxy with `curl`. Nobody opened the page in a browser, so I haven't seen it render.
+- **Commits:** the branch has the skeleton (`12d6a56`), the review fixes (`a8fa715`) and a final commit that resolves the ticket (`431a575`).
+- **Ticket file:** `01-runnable-skeleton.md` now has `Status: resolved`, ticked checkboxes and an `## Answer` section.
+- **PR:** none opened, since this tracker uses local markdown files.
+- **Extras:** the extra tests (4 backend and 2 frontend against the ticket's one each) are small. I kept them.
+- **Cleanup:** the implementer worktree and its branch are removed.
+
+I ran the `code-review` skill (standards and spec) on the branch and had one agent fix these:
+- **Dev 500 error:** unhandled errors now return the JSON error envelope even with `DEBUG=True`, with a new test. Before, Django's HTML error page leaked through.
+- **Quote style:** Python docstrings and JSX attributes now use single quotes.
+- **Seed command:** I removed the unused `--flush` option from `seed_activity`. Ticket 02 owns it.
+- **uv image:** it is now pinned to `0.5.31` instead of `latest`.
+
+I left these review notes alone:
+- The `/health/` payload uses a `status` key, which could be confused with the domain Status.
+- `SECRET_KEY` has an insecure default in `base.py`.
+- The `web-node-modules` volume can mask changes to `package.json` until `make down` is run.
+
+To pick up the rest, the next ticket is `02-seeded-accounts-and-selectors.md`.
+
+## User
+
+Create or update a pull request for this branch.
+- Commit and push any intended changes before creating the pull request.
+- Use the `gh` CLI (e.g. `gh pr create` or `gh pr create --draft`) to create the PR after pushing, or `gh pr edit` to update the existing PR if one already exists for this branch.
+- Do not stop after committing or pushing; finish by creating or updating the pull request.
+- If the CLI needed to create the pull request is not installed or not signed in, stop after pushing and give the user a compare link instead.
+- Write a concise pull request title.
+- Provide a complete pull request description/body.
+- Create the pull request as a draft. Prefer `gh pr create --draft` when creating a new pull request.
+- Before creating the pull request, check for a PR template (for example PULL_REQUEST_TEMPLATE.md, .github/PULL_REQUEST_TEMPLATE.md, or PULL_REQUEST_TEMPLATE/*.md) and use it if one exists.
+
+Repository: (discover via `git remote get-url origin`)
+Base branch: (use the repository default branch — discover via `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`)
+Head branch: dash-247-integration
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+`gh` isn't signed in, so I'll push and then give you a compare link. The working tree is clean.
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+I pushed `dash-247-integration` to GitHub, but I didn't create the pull request. The `gh` CLI isn't signed in: its GitHub token is invalid and calls return `HTTP 401: Bad credentials`. The working tree was clean, so there was nothing else to commit.
+
+Open the pull request here: https://github.com/daniel12564/take-home-prompt/pull/new/dash-247-integration
+
+Once you've run `gh auth login -h github.com`, I can create the draft PR myself. If you'd rather paste it in, here is the title and body I'd use.
+
+**Title:** `DASH-247: runnable skeleton with API envelope and test harnesses`
+
+**Body:**
+```markdown
+## Summary
+
+Implements ticket 01 of DASH-247 (`.scratch/dash-247-is-this-normal/issues/01-runnable-skeleton.md`). It adds no domain features. It gives later tickets a runnable base.
+
+- **Docker Compose:** `db` (Postgres 16), `api` (Python 3.12, Django 5, DRF, psycopg 3, `uv`) and `web` (Node 20, Vite with `/api` proxied to `api`).
+- **Makefile:** `up`, `down` (removes volumes), `setup` (migrate, then a stub `seed_activity`), `test-api` and `test-web`.
+- **Settings:** split into base and development, read from the environment. `.env.example` lists `DATABASE_URL`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` and `VITE_API_BASE_URL`.
+- **Backend layout:** `config`, `core` (unified response helpers and a global DRF exception handler), `api/v1` and empty `accounts` / `activity` apps.
+- **Unified envelope:**
+  - Success is `{success: true, data}`.
+  - Failure is `{success: false, message, errors, error_code}`.
+  - Unknown routes return `NOT_FOUND`, validation failures return `VALIDATION_ERROR`, and unhandled errors return a 500 `INTERNAL_ERROR`, including with `DEBUG=True`.
+- **Health endpoint:** `GET /api/v1/health/` returns the success envelope.
+- **Frontend:** Vite, React, TypeScript, Tailwind and TanStack Query. The page shows loading, error and success states for the health call. No router, store, form library or component kit.
+
+## Review follow-ups
+
+I ran a standards and spec review of the branch and fixed these:
+- Dev-mode 500 errors now return the JSON envelope, with a new test.
+- Python docstrings and JSX attributes use single quotes.
+- The unused `--flush` option was removed from `seed_activity`. Ticket 02 owns it.
+- The `uv` image is pinned to `0.5.31`.
+
+I left these review notes as they are:
+- The health payload uses a `status` key, which could be confused with the domain Status.
+- `SECRET_KEY` has an insecure default in `base.py`.
+- The `web-node-modules` volume can mask changes to `package.json` until `make down` is run.
+
+## Test plan
+
+- [x] `make test-api` passes (4 pytest tests: health, unknown route, validation failure, unhandled error).
+- [x] `make test-web` passes (2 Vitest tests: loading then success, and error).
+- [x] `make up` starts all three services, and `curl` against the Vite proxy returns the health envelope.
+- [ ] Open the web app in a browser and confirm the page renders the health result. Nobody has done this yet.
+
+Tickets 02–08 are out of scope for this PR.
+```
+
+## User
+
+Create or update a pull request for this branch.
+- Commit and push any intended changes before creating the pull request.
+- Use the `gh` CLI (e.g. `gh pr create` or `gh pr create --draft`) to create the PR after pushing, or `gh pr edit` to update the existing PR if one already exists for this branch.
+- Do not stop after committing or pushing; finish by creating or updating the pull request.
+- If the CLI needed to create the pull request is not installed or not signed in, stop after pushing and give the user a compare link instead.
+- Write a concise pull request title.
+- Provide a complete pull request description/body.
+- Create the pull request as a draft. Prefer `gh pr create --draft` when creating a new pull request.
+- Before creating the pull request, check for a PR template (for example PULL_REQUEST_TEMPLATE.md, .github/PULL_REQUEST_TEMPLATE.md, or PULL_REQUEST_TEMPLATE/*.md) and use it if one exists.
+
+Repository: (discover via `git remote get-url origin`)
+Base branch: (use the repository default branch — discover via `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`)
+Head branch: main
+
+### Tool Run Terminal Command V2
+
+## User
+
+/implement-spec  I've run the application with the makefile commands and validated the last point of the test plan. I've also created and merged the PR into the main branch so task 01 is finished. We can continie with the implementation of the remaining tickets
+
+### Tool Run Terminal Command V2
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+The remaining tickets (02→08) form a linear chain, so each frontier has one ticket. Starting with ticket 02.
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+Ticket 03 is next.
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+### Tool New agent
+
+### Tool Ripgrep Raw Search
+
+```
+{"pattern":"North|critical.*warning|twice|2 ?× ?Tolerance|2×","path":"/Users/dyanac/Desarrollo/qualitara/PLAN_REFINED.md","outputMode":"content","caseInsensitive":false,"multiline":false,"toolCallId":"toolu_01DYKVsHfUkBhi4oceFB6okx","offset":0}
+```
+
+### Tool Ripgrep Raw Search
+
+```
+{"pattern":"warning|North","path":"/Users/dyanac/Desarrollo/qualitara/.scratch/dash-247-is-this-normal/issues/06-attention-list-per-location.md","outputMode":"content","caseInsensitive":false,"multiline":false,"toolCallId":"toolu_01Y2txXdHBVnFdZEY6Xv7pNt","offset":0}
+```
+
+### Tool Run Terminal Command V2
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+Every ticket is done, so I'm starting the code review on the integration branch (diff against `main`).
+
+### Tool Run Terminal Command V2
+
+### Tool New agent
+
+### Tool New agent
+
+### Tool New agent
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+Tickets 02–08 are implemented, reviewed and fixed on `dash-247-tickets-02-08`, branched from `main` after the PR for ticket 01 was merged. I pushed it to origin. I didn't open a PR because `gh` is still signed out; the compare link is https://github.com/daniel12564/take-home-prompt/pull/new/dash-247-tickets-02-08.
+
+- **Tests:** `make test-api` passes with 167 tests, `make test-web` with 79, and `tsc` and the frontend build are clean.
+- **Seed check:** the implementer checked every row of the PLAN §3.13 checklist against the real seed with `curl`.
+- **Not checked in a browser:** nobody opened the UI in a live browser. The implementer only looked at three static screenshots, so please click through it yourself.
+- **Tickets:** each ticket file is marked resolved, with an `## Answer` section recording any deviation.
+- **Cleanup:** the worktrees are removed. The old local branch `dash-247-integration` is still there.
+
+**Deviations from the plan**
+- **Ticket 06 fixture:** the plan has North at 12 calls against a baseline of 5. The plan's own severity rule makes that `critical`, but the ticket needs `warning`. I changed the fixture to 11 calls. In ticket 08 I updated the plan and spec to say so.
+- **Ticket 08 fixes:**
+  - The Activity Summary now says "no activity recorded" for an Account with no events, instead of the short-history text.
+  - The Account-wide Finding now quotes the Account's total baseline (40.5) instead of a sum of per-Location baselines (37.5).
+- **Zero-baseline warnings:** account 6 on 2026-06-29 and 2026-04-13 shows extra per-Location warnings beyond the §3.13 checklist. They come from zero-baseline Locations. Those weeks are now listed in full in the plan, and a limitation note covers it.
+
+**Code review: fixed**
+- **Validation errors:** the UI now shows the per-field messages, such as `location: Unknown location for this account.`
+- **One-day callout:** it is now tested per Metric instead of pooled across Metrics.
+- **Surges:** above-typical Findings now use amber styling, even when their Severity is critical.
+- **Cleanup:** shared frontend formatting moved into `lib/format.ts`, and a stale comment removed.
+
+**Code review: left alone, because it needs your decision**
+- **Invalid `week` in the URL:** it silently falls back to the default week. Ticket 03 asked for that, but spec story 39 says a mistyped link shouldn't silently show something else.
+- **Ordering:** zero-baseline Findings sort ahead of larger real deviations in their tier.
+- **Surge label:** a surge can show amber with a "Critical" label.
+- **Merged Account-wide Finding:** the explanation only gives numbers for the first Metric.
+- **Glossary wording:** "this week" and "Typical" appear in user-facing text, and both are on the glossary's avoid list.
+
+Tell me which of these you want changed.
+
+## User
+
+Create or update a pull request for this branch.
+- Commit and push any intended changes before creating the pull request.
+- Use the `gh` CLI (e.g. `gh pr create` or `gh pr create --draft`) to create the PR after pushing, or `gh pr edit` to update the existing PR if one already exists for this branch.
+- Do not stop after committing or pushing; finish by creating or updating the pull request.
+- If the CLI needed to create the pull request is not installed or not signed in, stop after pushing and give the user a compare link instead.
+- Write a concise pull request title.
+- Provide a complete pull request description/body.
+- Create the pull request as a draft. Prefer `gh pr create --draft` when creating a new pull request.
+- Before creating the pull request, check for a PR template (for example PULL_REQUEST_TEMPLATE.md, .github/PULL_REQUEST_TEMPLATE.md, or PULL_REQUEST_TEMPLATE/*.md) and use it if one exists.
+
+Repository: (discover via `git remote get-url origin`)
+Base branch: (use the repository default branch — discover via `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`)
+Head branch: dash-247-tickets-02-08
+
+### Tool Run Terminal Command V2
+
+## Assistant
+
+`dash-247-tickets-02-08` is pushed and up to date, but I didn't create the pull request. The `gh` CLI is still signed out (its GitHub token is invalid), so I stopped after the push. The repo has no PR template.
+
+Open the PR here: https://github.com/daniel12564/take-home-prompt/pull/new/dash-247-tickets-02-08
+
+Once you've run `gh auth login -h github.com`, I can create it as a draft. If you'd rather paste it in, here is the title and body I'd use.
+
+**Title:** `DASH-247: activity summary, baselines and attention list (tickets 02–08)`
+
+**Body:**
+```markdown
+## Summary
+
+Implements tickets 02–08 of DASH-247 (`.scratch/dash-247-is-this-normal/`) on top of the skeleton from ticket 01. A Customer Admin can now see whether a Reporting Week is typical and which Locations need attention.
+
+- **02, seed and selectors:** Account and Location models, the seed converter and `seed_activity` command (idempotent, `--flush`, original ids preserved), the accounts and locations endpoints, and the header selectors. Account, week and Location are kept in the URL.
+- **03, Reporting Week:** the Reference Date setting, timezone-aware week bounds, the week picker, and `week_start` / `location` validation on the Activity Summary endpoint.
+- **04, counts:** weekly counts for the three Metrics, from one grouped query.
+- **05, Baseline and Status:** median of the trailing eight complete weeks and the combined Tolerance (ADR-0001). The Activity Summary shows typical, above, below or insufficient data. All rule constants are in `DASHBOARD_RULES`.
+- **06, Attention List:** per-Location Findings, a No-activity Finding, Severity, ordering and plain-language explanations (ADR-0002).
+- **07, Account-wide Findings:** rollup when most Locations move together, plus a one-day callout.
+- **08, acceptance and README:** every PLAN §3.13 row was walked against the real seed, and the README covers clone-to-demo steps, rules and known limitations.
+
+Tickets 02–08 are marked resolved in `.scratch/`. Each ticket's `## Answer` section records its deviations.
+
+## Review follow-ups
+
+A standards and spec review of the branch led to these fixes:
+- The UI shows per-field validation messages, for example an unknown `location`.
+- The one-day callout is tested per Metric, not pooled across Metrics.
+- Above-typical Findings use amber styling, even when their Severity is critical.
+- Shared frontend formatting moved to `lib/format.ts`, and a stale comment was removed.
+
+## Deviations from the plan
+
+- **North fixture:** the plan has 12 calls against a baseline of 5. That makes the Finding `critical` under the §3.6 severity rule, but the ticket requires `warning`. The fixture now uses 11 calls, and the plan and spec say so.
+- **Account-wide baseline:** the Finding now quotes the Account's total baseline, matching the Summary card (40.5).
+- **Insufficient data:** the Summary says "no activity recorded" for an Account with no events, instead of the short-history text.
+- **Extra warnings on account 6:** on 2026-06-29 and 2026-04-13, zero-baseline Locations produce warnings beyond the §3.13 checklist. The plan and README now list the full result.
+- **New payload fields:** `insufficient_reason` and `affected_by_metric`.
+
+## Open questions
+
+- An invalid `week` in the URL silently falls back to the default week. Ticket 03 asked for that, but spec story 39 says a mistyped link should not silently show something else.
+- Zero-baseline Findings sort ahead of larger real deviations in their tier.
+- A surge can show amber with a "Critical" label.
+- The merged Account-wide explanation only gives numbers for the first Metric.
+- User-facing text uses "this week" and "Typical", which are on the glossary's avoid list.
+
+## Test plan
+
+- [x] `make test-api` passes (167 tests).
+- [x] `make test-web` passes (79 tests).
+- [x] `tsc --noEmit` and `npm run build` are clean.
+- [x] Every PLAN §3.13 row checked against the real seed with `curl`, plus headless screenshots of three views.
+- [ ] Click through the selectors in a real browser after `make up` and `make setup`. Nobody has done this yet.
+```

@@ -6,10 +6,14 @@ Spec: `.scratch/dash-247-is-this-normal/spec.md`. Decisions: `PLAN_REFINED.md` �
 
 **Blocked by:** 07 (Account-wide Findings).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] From a clean checkout, `make up` then `make setup` reaches a usable dashboard with no manual steps beyond copying `.env.example`.
-- [ ] Every row of the manual acceptance checklist in `PLAN_REFINED.md` §3.13 is verified against the running app (summary values, Statuses, Findings, Severities, Account-wide collapse with the 2026-06-03 callout, validation and not-found errors). Discrepancies are either fixed or, if the agreed expectation was wrong, corrected in `PLAN_REFINED.md` with a note explaining why.
-- [ ] `make test-api` and `make test-web` are green.
-- [ ] README at the repo root covers: what the dashboard answers and for whom; the `make` workflow; how to pick Accounts/weeks/Locations and what the colours and Severities mean; the fixed Reference Date and why; where the rule constants live; a pointer to `GLOSSARY.md`, `docs/adr/`, `PLAN_REFINED.md` and the spec; known limitations (no auth, no LLM, counts only, unit and fixture-level API tests only, constants tuned to the seed).
-- [ ] The repo root contains no leftover scratch artefacts from implementation; `PLAN.md` remains untouched.
+- [x] From a clean checkout, `make up` then `make setup` reaches a usable dashboard with no manual steps beyond copying `.env.example`.
+- [x] Every row of the manual acceptance checklist in `PLAN_REFINED.md` §3.13 is verified against the running app (summary values, Statuses, Findings, Severities, Account-wide collapse with the 2026-06-03 callout, validation and not-found errors). Discrepancies are either fixed or, if the agreed expectation was wrong, corrected in `PLAN_REFINED.md` with a note explaining why.
+- [x] `make test-api` and `make test-web` are green.
+- [x] README at the repo root covers: what the dashboard answers and for whom; the `make` workflow; how to pick Accounts/weeks/Locations and what the colours and Severities mean; the fixed Reference Date and why; where the rule constants live; a pointer to `GLOSSARY.md`, `docs/adr/`, `PLAN_REFINED.md` and the spec; known limitations (no auth, no LLM, counts only, unit and fixture-level API tests only, constants tuned to the seed).
+- [x] The repo root contains no leftover scratch artefacts from implementation; `PLAN.md` remains untouched.
+
+## Answer
+
+Implemented on `dash-247-tickets-02-08` (3449569). `make test-api` (164) and `make test-web` (75) pass; every §3.13 row checked against the real seed via curl and headless screenshots. Fixed: insufficient-data wording (new `insufficient_reason` on the summary); Account-wide Finding now quotes the Account total baseline. Documented instead of changed: North fixture 11 calls, extra per-Location warnings on account 6 (zero-baseline sites). README added. UI not clicked through in a live browser.

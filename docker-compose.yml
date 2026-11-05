@@ -23,7 +23,7 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - '8000:8000'
+      - '${API_PORT:-8000}:8000'
     depends_on:
       db:
         condition: service_healthy
@@ -38,7 +38,7 @@ services:
       - ./frontend:/app
       - web-node-modules:/app/node_modules
     ports:
-      - '5173:5173'
+      - '${WEB_PORT:-5173}:5173'
     depends_on:
       - api
 

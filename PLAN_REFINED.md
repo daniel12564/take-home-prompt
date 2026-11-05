@@ -108,7 +108,7 @@ Explanation templates (one per `kind` × `scope`), e.g.
 
 - per-Location metric: `Site B received 0 calls this week; it typically receives about 5.`
 - no activity: `Site G recorded no calls, leads or appointments this week; it is normally active.`
-- Account-wide: `Calls, leads and appointments were far above typical at 15 of 15 locations (529 calls vs about 41). 805 of this week's events happened on Wed 3 Jun.`
+- Account-wide: `Calls, leads and appointments were far above typical at 14 to 15 of 15 locations (529 calls vs about 40.5). Most of this week's events happened on Wed 3 Jun.` The numbers are the Account's own, identical to the Activity Summary card (viewed-week total vs median of weekly sums), not a sum over the affected Locations; the Finding's `affected_by_metric` carries the per-Metric Location counts.
 
 ### 3.7 Data model
 
@@ -147,7 +147,7 @@ Base path `/api/v1/`. Read-only. Unified envelopes from `core/responses.py` and 
 | `GET accounts/` | — | `[{ id, name, timezone, location_count }]` |
 | `GET accounts/{id}/locations/` | — | `[ "Site A", ... ]` (all-time distinct, sorted) |
 | `GET accounts/{id}/dashboard/activity-summary/` | `week_start?`, `location?` | see below |
-| `GET accounts/{id}/dashboard/attention/` | `week_start?` | `{ week_start, week_end, findings: [Finding] }` |
+| `GET accounts/{id}/dashboard/attention/` | `week_start?` | `{ account_id, week_start, week_end, insufficient_reason, findings: [Finding] }` |
 
 Activity Summary payload:
 
@@ -157,12 +157,15 @@ Activity Summary payload:
   "week_start": "2026-07-20", "week_end": "2026-07-26",
   "location": null,
   "baseline_weeks_used": 8,
+  "insufficient_reason": null,
   "metrics": [
     { "event_type": "call_received", "current": 51, "baseline": 42.0,
       "delta": 9, "delta_pct": 21.4, "status": "typical" }
   ]
 }
 ```
+
+`insufficient_reason` (both endpoints) is `null` when verdicts can be given, `no_events` when the scope recorded no Activity Event in the Baseline Window or viewed week (e.g. account 20), and `short_history` when events exist but the window holds fewer than 4 weeks. The UI uses it to word the empty states differently (spec story 8).
 
 Errors: unknown account → 404 `NOT_FOUND`; `week_start` not a Monday, before `2026-02-02`, or not complete at the Reference Date → 400 `VALIDATION_ERROR`; unknown `location` for the account → 400.
 
@@ -225,7 +228,7 @@ Backend unit tests, `pytest` + `pytest-django`, no database access:
 
 Backend API tests, DRF `APIClient` against the test database, on one handcrafted fixture built in `tests/conftest.py` (a factory, not the seed CSVs):
 
-- Fixture: Account `A` in `America/Chicago` with Locations `North`, `South`, `East`; Account `B` in `UTC` with no Activity Events. Ten Reporting Weeks ending at the default week, steady volumes per Location (about 5 calls, 2 leads, 1 appointment a week), plus three planted signals: `South` has zero events in the default week; `North` has 12 calls in the default week; all three Locations have 4× calls in week 6 (an Account-wide spike that must not move later Baselines).
+- Fixture: Account `A` in `America/Chicago` with Locations `North`, `South`, `East`; Account `B` in `UTC` with no Activity Events. Ten Reporting Weeks ending at the default week, steady volumes per Location (about 5 calls, 2 leads, 1 appointment a week), plus three planted signals: `South` has zero events in the default week; `North` has 11 calls in the default week (12 would be `critical` under the severity rule in 3.6: |12 − 5| = 7 ≥ 2 × tolerance 3; 11 gives 6 < 2 × 3 → `warning`); all three Locations have 4× calls in week 6 (an Account-wide spike that must not move later Baselines).
 - `accounts/`: both Accounts, `location_count` 3 and 0.
 - `accounts/{id}/locations/`: sorted names; 404 for an unknown id.
 - `activity-summary/`: default week when `week_start` omitted; `location=North` calls `above`; Account totals use weekly sums; `baseline_weeks_used` is 8; Account `B` returns `insufficient_data` for every Metric; `week_start` before `2026-02-02`, a non-Monday, or `2026-07-27` → 400 `VALIDATION_ERROR` with the field in `errors`; unknown `location` → 400.
@@ -235,22 +238,22 @@ Backend API tests, DRF `APIClient` against the test database, on one handcrafted
 
 Frontend, Vitest + RTL: `status-badge` colour mapping; Activity Summary and Attention List empty / insufficient states.
 
-### 3.13 Manual acceptance checklist (from the seed, verified by simulation)
+### 3.13 Manual acceptance checklist (from the seed, verified against the running app)
 
-Run after `make setup && make up`:
+Run after `make up && make setup`. Each row lists the **complete** Attention List for that view (verified with curl against the real seed, ticket 08). An earlier draft of the 06-29, 04-13 and 03-02 rows named only the headline Findings; the extra per-Location `warning`s now listed are correct outputs of the ADR-0001 rules, checked against the raw events (e.g. `Site O` calls 6 vs a median of 3: deviation 3 = tolerance 3, so it is flagged; a Location at Baseline 0 with 3 events is `above`). They are small-count blips, not bugs.
 
 | Account / week | Expected |
 |---|---|
 | 6, `2026-07-20` (default) | Summary: calls 51 vs 42 typical, leads 17 vs 15 typical, appointments 19 vs 13 **above**. Attention: 3 `warning` Findings (`Site A` calls 7 vs 4, `Site H` calls 6 vs 2.5, `Site M` appointments 3 vs 0). |
-| 6, `2026-06-01` | Summary: all three Metrics `above`, calls 529 vs 40.5. Attention: **one** Account-wide Finding (calls 15/15, leads 15/15, appointments 14/15; concentrated on 2026-06-03), nothing per-Location. |
-| 6, `2026-06-29` | Baseline unaffected by the spike (calls 46.5). `Site G` no-activity `critical`. |
-| 6, `2026-04-13` | Summary calls and appointments `below`. `Site G` no-activity `critical`, `Site N` calls 0 vs 3.5 `critical`. |
+| 6, `2026-06-01` | Summary: all three Metrics `above`, calls 529 vs 40.5. Attention: **one** `critical` Account-wide Finding (calls 15/15, leads 15/15, appointments 14/15; 529 calls vs about 40.5, the same numbers as the Summary card; concentrated on 2026-06-03), nothing per-Location. |
+| 6, `2026-06-29` | Summary all `typical`; Baseline unaffected by the spike (calls 46.5). Attention: `Site G` no-activity `critical`; `warning`s `Site H` leads 3 vs 0, `Site E` calls 8 vs 4.5. |
+| 6, `2026-04-13` | Summary calls and appointments `below`, leads `typical`. Attention: `Site G` no-activity `critical`, `Site N` calls 0 vs 3.5 `critical`; `warning`s `Site F` leads 3 vs 0, `Site O` calls 6 vs 3. |
 | 15, `2026-07-20` | `Site B` calls 0 vs 5 `critical`; `Site C` calls 6 vs 2.5 `warning`; account totals typical. |
-| 20, any week | All Metrics `insufficient_data`; empty Attention List with explanatory state. |
-| 1, `2026-02-16` | `insufficient_data` everywhere (only 2 baseline weeks). |
-| 1, `2026-03-02` | First week with verdicts (4 baseline weeks). |
+| 20, any week | All Metrics `insufficient_data` (`insufficient_reason: no_events`); the cards and the empty Attention List both say no activity has been recorded for the account, not that history is short. |
+| 1, `2026-02-16` | `insufficient_data` everywhere (only 2 baseline weeks; `insufficient_reason: short_history`, cards and Attention List say more history is needed). |
+| 1, `2026-03-02` | First week with verdicts (4 baseline weeks), all `typical`; `warning`s `Site E` appointments 4 vs 1, `Site F` leads 4 vs 1. |
 | 16, `2026-07-20` | Single Location, ~6 events/week: everything `typical`, empty Attention List (noise guard). |
-| any | `week=2026-07-27` rejected with 400; non-Monday rejected; unknown account 404. |
+| any | `week_start=2026-07-27`, a non-Monday, a week before `2026-02-02`, an unparseable date and an unknown `location` are rejected with 400 `VALIDATION_ERROR` naming the field; unknown account 404 `NOT_FOUND`. |
 
 ## 4. Build order
 
@@ -268,4 +271,6 @@ Each step ends with its check passing before the next starts.
 - Reference Date is fixed; swapping it for `today()` is a one-line change but the seed would then show no data.
 - No end-to-end tests and no tests against the full seed; API tests run on a small handcrafted fixture, and the seed signals in 3.13 remain a manual checklist.
 - Outcome and duration data are loaded but not surfaced.
+- A Location with a zero Baseline is flagged `above` from 3 events in a week (e.g. 3 leads at a site that normally has none). This is the ADR-0001 absolute allowance working as specified; it produces a few low-severity `warning`s on the seed's quiet Locations.
+- The Activity Summary has no per-Location breakdown; per-Location verdicts appear only through the Location selector and the Attention List.
 - Tolerance constants are tuned for this seed's volumes; they are in one settings dict for that reason.

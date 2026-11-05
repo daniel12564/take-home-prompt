@@ -1,3 +1,4 @@
+from django.contrib import admin
 from django.urls import include, path, re_path
 
 from core.exceptions import NotFoundView
@@ -7,6 +8,7 @@ from core.exceptions import NotFoundView
 handler500 = 'core.exceptions.server_error'
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('api/v1/', include('api.v1.urls')),
     re_path(r'^.*$', NotFoundView.as_view()),
 ]
