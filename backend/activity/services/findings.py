@@ -71,17 +71,27 @@ def no_activity_finding(location):
     )
 
 
-def account_wide_finding(direction, members, total_locations):
+def account_scope(rows, week_start, window, event_type):
+    '''The viewed week's total and the Baseline of one Metric over the whole Account.
+
+    The same numbers the Activity Summary shows for the Account: the Baseline is the median of
+    the weekly sums, not the sum of the Locations' own Baselines.
+    '''
+    current = baseline_service.weekly_totals(rows, [week_start], event_type)[0]
+    typical = baseline_service.median(baseline_service.weekly_totals(rows, window, event_type))
+    return current, typical
+
+
+def account_wide_finding(direction, members, total_locations, scope):
     '''One Account-wide Finding for the per-Location Findings of one direction.
 
-    `members` maps each rolled-up Event Type to its per-Location Findings. `current`, `baseline`
-    and `delta_pct` describe the first Metric, summed over the Locations affected on it.
+    `members` maps each rolled-up Event Type to its per-Location Findings; `scope` maps each Event
+    Type to its Account `(current, baseline)`. `current`, `baseline` and `delta_pct` describe the
+    first Metric over the whole Account, so they match the Activity Summary card.
     '''
     event_types = tuple(event_type for event_type in EVENT_TYPES if event_type in members)
     affected_by_metric = {event_type: len(members[event_type]) for event_type in event_types}
-    lead = members[event_types[0]]
-    current = sum(finding.current for finding in lead)
-    baseline = sum(finding.baseline for finding in lead)
+    current, baseline = scope[event_types[0]]
     critical = any(
         finding.severity == rules_service.CRITICAL
         for findings_of_metric in members.values()
@@ -95,7 +105,7 @@ def account_wide_finding(direction, members, total_locations):
         direction=direction,
         severity=rules_service.CRITICAL if critical else rules_service.WARNING,
         current=current,
-        baseline=baseline,
+        baseline=float(baseline),
         delta_pct=rules_service.delta_pct(current, baseline),
         affected_locations=max(affected_by_metric.values()),
         total_locations=total_locations,
@@ -107,12 +117,13 @@ def account_wide_finding(direction, members, total_locations):
     )
 
 
-def roll_up(found, total_locations, rules):
+def roll_up(found, total_locations, rules, scope):
     '''Replace the per-Location Findings that most Locations share with Account-wide Findings.
 
     A (Metric, direction) rolls up when at least `rollup_min_locations` Locations, and at least
     `rollup_min_share` of the `total_locations` universe, have it. Rolled-up Metrics of the same
-    direction merge into one Account-wide Finding; everything else is kept.
+    direction merge into one Account-wide Finding; everything else is kept. `scope` maps each
+    Event Type to its Account `(current, baseline)` for the Account-wide numbers.
     '''
     groups = {}
     for finding in found:
@@ -131,7 +142,7 @@ def roll_up(found, total_locations, rules):
     replaced = {id(finding) for members in rolled.values() for group in members.values() for finding in group}
     kept = [finding for finding in found if id(finding) not in replaced]
     return kept + [
-        account_wide_finding(direction, members, total_locations)
+        account_wide_finding(direction, members, total_locations, scope)
         for direction, members in rolled.items()
     ]
 
@@ -230,4 +241,7 @@ def build(rows, week_start, window, rules):
                 found.append(
                     location_metric_finding(location, event_type, current, typical, status, rules)
                 )
-    return sorted(roll_up(found, len(by_location), rules), key=order_key)
+    scope = {
+        event_type: account_scope(rows, week_start, window, event_type) for event_type in EVENT_TYPES
+    }
+    return sorted(roll_up(found, len(by_location), rules, scope), key=order_key)

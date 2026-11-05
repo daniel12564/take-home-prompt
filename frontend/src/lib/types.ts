@@ -32,12 +32,15 @@ export interface Metric {
   status: MetricStatus;
 }
 
+export type InsufficientReason = 'no_events' | 'short_history';
+
 export interface ActivitySummaryData {
   account_id: number;
   week_start: string;
   week_end: string;
   location: string | null;
   baseline_weeks_used: number;
+  insufficient_reason: InsufficientReason | null;
   metrics: Metric[];
 }
 
@@ -61,8 +64,6 @@ export interface Finding {
   affected_by_metric: Partial<Record<EventType, number>> | null;
   explanation: string;
 }
-
-export type InsufficientReason = 'no_events' | 'short_history';
 
 export interface AttentionData {
   account_id: number;

@@ -92,6 +92,7 @@ def test_account_b_is_insufficient_data_on_every_metric(dashboard_fixture):
         assert metric['delta'] is None
         assert metric['delta_pct'] is None
     assert data['baseline_weeks_used'] == 8
+    assert data['insufficient_reason'] == 'no_events'
 
 
 def test_location_without_any_event_in_the_window_or_week_is_insufficient_data(dashboard_fixture):
@@ -105,6 +106,13 @@ def test_location_without_any_event_in_the_window_or_week_is_insufficient_data(d
     data = summary(dashboard_fixture.account_a.id, location='Annex').json()['data']
 
     assert {metric['status'] for metric in data['metrics']} == {'insufficient_data'}
+    assert data['insufficient_reason'] == 'no_events'
+
+
+def test_a_summary_with_verdicts_has_no_insufficient_reason(dashboard_fixture):
+    data = summary(dashboard_fixture.account_a.id).json()['data']
+
+    assert data['insufficient_reason'] is None
 
 
 def test_the_spike_week_does_not_change_the_baseline_of_later_weeks(dashboard_fixture):
@@ -152,6 +160,8 @@ def test_fewer_than_four_weeks_in_the_window_give_no_verdict(dashboard_fixture):
     four_weeks = summary(account.id, week_start='2026-03-02').json()['data']
 
     assert three_weeks['baseline_weeks_used'] == 3
+    assert three_weeks['insufficient_reason'] == 'short_history'
+    assert four_weeks['insufficient_reason'] is None
     assert metric_for(three_weeks, 'call_received')['status'] == 'insufficient_data'
     assert metric_for(three_weeks, 'call_received')['baseline'] is None
     assert four_weeks['baseline_weeks_used'] == 4

@@ -1,5 +1,5 @@
 import { useActivitySummary } from '../../api/dashboard';
-import type { EventType, Metric } from '../../lib/types';
+import type { ActivitySummaryData, EventType, Metric } from '../../lib/types';
 import { StatusBadge } from './status-badge';
 
 export const METRIC_LABELS: Record<EventType, string> = {
@@ -21,6 +21,13 @@ function formatDelta(metric: Metric): string | null {
   if (metric.delta === null) return null;
   if (metric.delta_pct === null) return formatSigned(metric.delta);
   return `${formatSigned(metric.delta)} (${formatSigned(metric.delta_pct, '%')})`;
+}
+
+function insufficientMessage(reason: ActivitySummaryData['insufficient_reason'], location: string | null) {
+  if (reason === 'no_events') {
+    return `No activity has been recorded for this ${location ? 'location' : 'account'} yet, so there is nothing to compare against.`;
+  }
+  return 'Not enough history yet: more weeks of activity are needed to judge this week.';
 }
 
 function weeksOfHistory(weeks: number): string {
@@ -72,7 +79,7 @@ export function ActivitySummary({ accountId, week, location }: ActivitySummaryPr
               <StatusBadge status={metric.status} />
               {metric.status === 'insufficient_data' ? (
                 <p className='text-sm text-slate-500'>
-                  Not enough history yet: more weeks of activity are needed to judge this week.
+                  {insufficientMessage(data.insufficient_reason, data.location)}
                 </p>
               ) : (
                 <div className='text-sm text-slate-600'>

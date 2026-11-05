@@ -213,6 +213,71 @@ describe('ActivitySummary Baseline and Status', () => {
     expect(screen.queryByText(/Typical values are based on/)).not.toBeInTheDocument();
   });
 
+  it('says there is no activity at all, not that history is short, when nothing was recorded', async () => {
+    stubFetch({
+      success: true,
+      data: {
+        ...payloadWith(
+          [metric({ current: 0, baseline: null, delta: null, delta_pct: null, status: 'insufficient_data' })],
+          8,
+        ),
+        insufficient_reason: 'no_events',
+      },
+    });
+
+    renderSummary({ accountId: '20', week: '2026-07-20', location: null });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(
+      within(calls).getByText(
+        'No activity has been recorded for this account yet, so there is nothing to compare against.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(calls).queryByText(/Not enough history yet/)).not.toBeInTheDocument();
+  });
+
+  it('names the Location when the selected Location has no activity', async () => {
+    stubFetch({
+      success: true,
+      data: {
+        ...payloadWith(
+          [metric({ current: 0, baseline: null, delta: null, delta_pct: null, status: 'insufficient_data' })],
+          8,
+        ),
+        location: 'Site A',
+        insufficient_reason: 'no_events',
+      },
+    });
+
+    renderSummary({ accountId: '6', week: '2026-07-20', location: 'Site A' });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(
+      within(calls).getByText(
+        'No activity has been recorded for this location yet, so there is nothing to compare against.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the short history explanation when the API says the history is short', async () => {
+    stubFetch({
+      success: true,
+      data: {
+        ...payloadWith(
+          [metric({ baseline: null, delta: null, delta_pct: null, status: 'insufficient_data' })],
+          2,
+        ),
+        insufficient_reason: 'short_history',
+      },
+    });
+
+    renderSummary({ accountId: '1', week: '2026-02-16', location: null });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(within(calls).getByText(/Not enough history yet/)).toBeInTheDocument();
+    expect(within(calls).queryByText(/No activity has been recorded/)).not.toBeInTheDocument();
+  });
+
   it('does not show the insufficient data explanation on a judged card', async () => {
     stubFetch({ success: true, data: payloadWith([metric({})]) });
 

@@ -11,6 +11,10 @@ def attention(account_id, **params):
     return APIClient().get(f'/api/v1/accounts/{account_id}/dashboard/attention/', params)
 
 
+def summary(account_id, **params):
+    return APIClient().get(f'/api/v1/accounts/{account_id}/dashboard/activity-summary/', params)
+
+
 def test_default_week_lists_south_going_silent_then_north_calls_above_typical(dashboard_fixture):
     response = attention(dashboard_fixture.account_a.id)
 
@@ -194,6 +198,22 @@ def test_week_6_where_every_location_has_4x_calls_is_one_account_wide_finding_an
     assert finding['affected_by_metric'] == {'call_received': 3}
     assert finding['concentrated_on'] is None
     assert [f for f in data['findings'] if f['scope'] == 'location'] == []
+
+
+def test_an_account_wide_finding_reports_the_same_account_numbers_as_the_summary(dashboard_fixture):
+    account_id = dashboard_fixture.account_a.id
+    finding = attention(account_id, week_start='2026-06-22').json()['data']['findings'][0]
+    calls = [
+        metric
+        for metric in summary(account_id, week_start='2026-06-22').json()['data']['metrics']
+        if metric['event_type'] == 'call_received'
+    ][0]
+
+    assert (finding['current'], finding['baseline'], finding['delta_pct']) == (
+        calls['current'],
+        calls['baseline'],
+        calls['delta_pct'],
+    )
 
 
 def test_an_account_wide_finding_costs_exactly_one_extra_query(

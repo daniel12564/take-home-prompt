@@ -52,6 +52,7 @@ def activity_summary(account, week_start, location):
         'week_end': week.end.isoformat(),
         'location': location,
         'baseline_weeks_used': len(window),
+        'insufficient_reason': findings.insufficient_reason(rows, window, settings.DASHBOARD_RULES),
         'metrics': [
             metric_summary(event_type, rows, week.start, window, has_activity)
             for event_type in ActivityEvent.EventType.values

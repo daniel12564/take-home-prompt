@@ -171,15 +171,15 @@ def test_three_of_five_locations_above_on_calls_roll_up_into_one_account_wide_fi
     assert finding.event_types == ('call_received',)
     assert finding.direction == 'above'
     assert finding.severity == 'critical'
-    assert finding.current == 60
-    assert finding.baseline == 15
-    assert finding.delta_pct == 300.0
+    assert finding.current == 70
+    assert finding.baseline == 25
+    assert finding.delta_pct == 180.0
     assert finding.affected_locations == 3
     assert finding.total_locations == 5
     assert finding.affected_by_metric == {'call_received': 3}
     assert finding.concentrated_on is None
     assert finding.explanation == (
-        'Calls were far above typical at 3 of 5 locations (60 calls vs about 15).'
+        'Calls were far above typical at 3 of 5 locations (70 calls vs about 25).'
     )
 
 
@@ -259,10 +259,10 @@ def test_same_direction_metrics_merge_into_one_finding_with_per_metric_counts():
     assert finding.affected_by_metric == {'call_received': 4, 'lead_created': 4}
     assert finding.affected_locations == 4
     assert finding.total_locations == 5
-    assert finding.current == 80
-    assert finding.baseline == 20
+    assert finding.current == 85
+    assert finding.baseline == 25
     assert finding.explanation == (
-        'Calls and leads were far above typical at 4 of 5 locations (80 calls vs about 20).'
+        'Calls and leads were far above typical at 4 of 5 locations (85 calls vs about 25).'
     )
 
 
