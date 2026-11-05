@@ -10,12 +10,14 @@ import {
 } from '../../lib/url-state';
 import { defaultWeek, isSelectableWeek } from '../../lib/weeks';
 import { AccountSelector } from './account-selector';
+import { ActivitySummary } from './activity-summary';
 import { LocationSelector } from './location-selector';
 import { WeekPicker } from './week-picker';
 
 export function DashboardPage() {
   const [search, setSearch] = useUrlSearch();
   const { account, week, location } = parseSelection(search);
+  const viewedWeek = isSelectableWeek(week) ? week : defaultWeek();
 
   useEffect(() => {
     setSearch(normalizeWeek(search), { replace: true });
@@ -31,7 +33,7 @@ export function DashboardPage() {
             onChange={(next) => setSearch(selectAccount(search, next))}
           />
           <WeekPicker
-            value={isSelectableWeek(week) ? week : defaultWeek()}
+            value={viewedWeek}
             onChange={(next) => setSearch(selectWeek(search, next))}
           />
           <LocationSelector
@@ -41,7 +43,9 @@ export function DashboardPage() {
           />
         </div>
       </header>
-      <main className='mx-auto max-w-5xl p-6' />
+      <main className='mx-auto max-w-5xl p-6'>
+        <ActivitySummary accountId={account} week={viewedWeek} location={location} />
+      </main>
     </div>
   );
 }

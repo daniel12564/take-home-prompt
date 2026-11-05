@@ -16,11 +16,34 @@ const LOCATIONS: Record<string, string[]> = {
   '20': [],
 };
 
+function summaryBody(accountId: string, location: string | null) {
+  const current = location ? 3 : 9;
+  return {
+    account_id: Number(accountId),
+    week_start: '2026-07-20',
+    week_end: '2026-07-26',
+    location,
+    baseline_weeks_used: 0,
+    metrics: ['call_received', 'lead_created', 'appointment_set'].map((event_type) => ({
+      event_type,
+      current,
+      baseline: null,
+      delta: null,
+      delta_pct: null,
+      status: 'insufficient_data',
+    })),
+  };
+}
+
 function stubApi() {
   const fetchMock = vi.fn((url: string) => {
     const locationsMatch = url.match(/\/accounts\/(\d+)\/locations\/$/);
+    const summaryMatch = url.match(/\/accounts\/(\d+)\/dashboard\/activity-summary\/\?(.*)$/);
     let body: unknown;
-    if (url.endsWith('/accounts/')) {
+    if (summaryMatch) {
+      const params = new URLSearchParams(summaryMatch[2]);
+      body = { success: true, data: summaryBody(summaryMatch[1], params.get('location')) };
+    } else if (url.endsWith('/accounts/')) {
       body = { success: true, data: ACCOUNTS };
     } else if (locationsMatch) {
       body = { success: true, data: LOCATIONS[locationsMatch[1]] };
@@ -230,5 +253,87 @@ describe('DashboardPage week picker', () => {
 
     expect(window.location.search).toBe('?account=2&week=2026-05-04');
     expect(weekSelect().value).toBe('2026-05-04');
+  });
+});
+
+function summaryCalls(fetchMock: ReturnType<typeof stubApi>) {
+  return fetchMock.mock.calls
+    .map(([url]) => String(url))
+    .filter((url) => url.includes('/dashboard/activity-summary/'));
+}
+
+describe('DashboardPage activity summary', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('asks for an Account instead of fetching when none is selected', async () => {
+    const fetchMock = stubApi();
+    renderPage();
+
+    expect(await screen.findByText('Choose an account to see its activity.')).toBeInTheDocument();
+    expect(summaryCalls(fetchMock)).toEqual([]);
+  });
+
+  it('renders the Metric cards for the selected Account, week and Location', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1&week=2026-07-13&location=North');
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(calls).toHaveTextContent('3');
+    expect(summaryCalls(fetchMock)).toEqual([
+      '/api/v1/accounts/1/dashboard/activity-summary/?week_start=2026-07-13&location=North',
+    ]);
+  });
+
+  it('omits the Location parameter for the whole Account', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1');
+
+    expect(await screen.findByRole('article', { name: 'Calls received' })).toHaveTextContent('9');
+    expect(summaryCalls(fetchMock)).toEqual([
+      '/api/v1/accounts/1/dashboard/activity-summary/?week_start=2026-07-20',
+    ]);
+  });
+
+  it('refetches when the week changes', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1');
+    await screen.findByRole('article', { name: 'Calls received' });
+
+    fireEvent.change(weekSelect(), { target: { value: '2026-07-13' } });
+
+    await waitFor(() =>
+      expect(summaryCalls(fetchMock)).toContain(
+        '/api/v1/accounts/1/dashboard/activity-summary/?week_start=2026-07-13',
+      ),
+    );
+  });
+
+  it('refetches when the Location changes', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1');
+    await screen.findByRole('option', { name: 'South' });
+
+    fireEvent.change(locationSelect(), { target: { value: 'South' } });
+
+    expect(await screen.findByRole('article', { name: 'Calls received' })).toHaveTextContent('3');
+    expect(summaryCalls(fetchMock)).toContain(
+      '/api/v1/accounts/1/dashboard/activity-summary/?week_start=2026-07-20&location=South',
+    );
+  });
+
+  it('refetches for the new Account when the Account changes', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1');
+    await screen.findByRole('option', { name: 'Harbor Dental Partners (1 location)' });
+
+    fireEvent.change(accountSelect(), { target: { value: '2' } });
+
+    await waitFor(() =>
+      expect(summaryCalls(fetchMock)).toContain(
+        '/api/v1/accounts/2/dashboard/activity-summary/?week_start=2026-07-20',
+      ),
+    );
   });
 });
