@@ -37,7 +37,7 @@ def test_account_scope_sums_every_location_for_the_default_week(dashboard_fixtur
         'lead_created',
         'appointment_set',
     ]
-    assert metric_counts(data) == {'call_received': 17, 'lead_created': 4, 'appointment_set': 2}
+    assert metric_counts(data) == {'call_received': 16, 'lead_created': 4, 'appointment_set': 2}
 
 
 def metric_for(data, event_type):
@@ -48,10 +48,10 @@ def test_north_calls_are_above_its_baseline_in_the_default_week(dashboard_fixtur
     data = summary(dashboard_fixture.account_a.id, location='North').json()['data']
 
     calls = metric_for(data, 'call_received')
-    assert calls['current'] == 12
+    assert calls['current'] == 11
     assert calls['baseline'] == 5
-    assert calls['delta'] == 7
-    assert calls['delta_pct'] == 140.0
+    assert calls['delta'] == 6
+    assert calls['delta_pct'] == 120.0
     assert calls['status'] == 'above'
     assert data['baseline_weeks_used'] == 8
 
@@ -60,10 +60,10 @@ def test_account_baseline_is_the_median_of_weekly_sums_across_locations(dashboar
     data = summary(dashboard_fixture.account_a.id).json()['data']
 
     calls = metric_for(data, 'call_received')
-    assert calls['current'] == 17
+    assert calls['current'] == 16
     assert calls['baseline'] == 15
-    assert calls['delta'] == 2
-    assert calls['delta_pct'] == 13.3
+    assert calls['delta'] == 1
+    assert calls['delta_pct'] == 6.7
     assert calls['status'] == 'typical'
     assert data['baseline_weeks_used'] == 8
 
@@ -164,7 +164,7 @@ def test_location_scope_counts_only_that_location(dashboard_fixture):
 
     data = response.json()['data']
     assert data['location'] == 'North'
-    assert metric_counts(data) == {'call_received': 12, 'lead_created': 2, 'appointment_set': 1}
+    assert metric_counts(data) == {'call_received': 11, 'lead_created': 2, 'appointment_set': 1}
 
 
 def test_location_with_no_events_that_week_yields_zeros(dashboard_fixture):
@@ -186,7 +186,7 @@ def test_event_at_sunday_2330_in_the_account_timezone_counts_in_the_earlier_week
     default = summary(dashboard_fixture.account_a.id).json()['data']
 
     assert metric_counts(earlier)['call_received'] == 16
-    assert metric_counts(default)['call_received'] == 17
+    assert metric_counts(default)['call_received'] == 16
 
 
 def test_explicit_week_start_and_location_are_echoed(dashboard_fixture):
@@ -303,7 +303,7 @@ def test_query_count_does_not_grow_with_the_number_of_locations(
         response = summary(dashboard_fixture.account_a.id)
 
     assert response.status_code == 200
-    assert metric_counts(response.json()['data'])['call_received'] == 37
+    assert metric_counts(response.json()['data'])['call_received'] == 36
 
 
 def test_location_scope_stays_within_a_fixed_query_budget(

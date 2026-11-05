@@ -51,7 +51,7 @@ def build_dashboard_fixture():
     Account A (America/Chicago): North, South and East, ten Reporting Weeks ending at
     the default week, each Location steady at 5 calls, 2 leads and 1 appointment a
     week, plus three planted signals: South has no events in the default week, North
-    has 12 calls in the default week, and every Location has 4x calls in week 6.
+    has 11 calls in the default week, and every Location has 4x calls in week 6.
     Account B (UTC) has no Activity Events.
     '''
     account_a = Account.objects.create(
@@ -67,7 +67,7 @@ def build_dashboard_fixture():
                     continue
                 if event_type == ActivityEvent.EventType.CALL_RECEIVED:
                     if location == 'North' and week_start == DEFAULT_WEEK:
-                        volume = 12
+                        volume = 11
                     if week_start == SPIKE_WEEK:
                         volume = volume * 4
                 events.extend(build_events(account_a, location, event_type, week_start, volume))

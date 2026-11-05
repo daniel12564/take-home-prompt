@@ -1,8 +1,10 @@
 '''Database entry point for the dashboard payloads.'''
 
+from dataclasses import asdict
+
 from django.conf import settings
 
-from . import baseline, periods, rules
+from . import baseline, findings, periods, rules
 from ..models import ActivityEvent
 
 
@@ -28,14 +30,20 @@ def metric_summary(event_type, rows, week_start, window, has_activity):
     }
 
 
-def activity_summary(account, week_start, location):
-    '''Activity Summary payload: each Metric's count, Baseline, delta and Status for the scope.'''
+def baseline_window(account, week_start):
+    '''The viewed Reporting Week of an Account and the Baseline Window before it.'''
     week = periods.week_containing(week_start, account.timezone)
     window = baseline.baseline_window(
         week.start,
         periods.first_week_start(settings.DASHBOARD_DATA_START_DATE),
         settings.DASHBOARD_RULES,
     )
+    return week, window
+
+
+def activity_summary(account, week_start, location):
+    '''Activity Summary payload: each Metric's count, Baseline, delta and Status for the scope.'''
+    week, window = baseline_window(account, week_start)
     rows = ActivityEvent.objects.weekly_counts(account, [*window, week.start], location)
     has_activity = bool(rows)
     return {
@@ -47,5 +55,21 @@ def activity_summary(account, week_start, location):
         'metrics': [
             metric_summary(event_type, rows, week.start, window, has_activity)
             for event_type in ActivityEvent.EventType.values
+        ],
+    }
+
+
+def attention(account, week_start):
+    '''Attention List payload: the ordered per-Location Findings of the whole Account.'''
+    week, window = baseline_window(account, week_start)
+    rows = ActivityEvent.objects.weekly_counts(account, [*window, week.start])
+    return {
+        'account_id': account.id,
+        'week_start': week.start.isoformat(),
+        'week_end': week.end.isoformat(),
+        'insufficient_reason': findings.insufficient_reason(rows, window, settings.DASHBOARD_RULES),
+        'findings': [
+            asdict(finding)
+            for finding in findings.build(rows, week.start, window, settings.DASHBOARD_RULES)
         ],
     }

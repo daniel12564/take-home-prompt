@@ -35,12 +35,41 @@ function summaryBody(accountId: string, location: string | null) {
   };
 }
 
+function attentionBody(accountId: string) {
+  return {
+    account_id: Number(accountId),
+    week_start: '2026-07-20',
+    week_end: '2026-07-26',
+    insufficient_reason: null,
+    findings: [
+      {
+        scope: 'location',
+        location: `Site for account ${accountId}`,
+        kind: 'no_activity',
+        event_types: ['call_received', 'lead_created', 'appointment_set'],
+        direction: 'below',
+        severity: 'critical',
+        current: 0,
+        baseline: null,
+        delta_pct: null,
+        affected_locations: null,
+        total_locations: null,
+        concentrated_on: null,
+        explanation: 'Went silent.',
+      },
+    ],
+  };
+}
+
 function stubApi() {
   const fetchMock = vi.fn((url: string) => {
     const locationsMatch = url.match(/\/accounts\/(\d+)\/locations\/$/);
     const summaryMatch = url.match(/\/accounts\/(\d+)\/dashboard\/activity-summary\/\?(.*)$/);
+    const attentionMatch = url.match(/\/accounts\/(\d+)\/dashboard\/attention\/\?(.*)$/);
     let body: unknown;
-    if (summaryMatch) {
+    if (attentionMatch) {
+      body = { success: true, data: attentionBody(attentionMatch[1]) };
+    } else if (summaryMatch) {
       const params = new URLSearchParams(summaryMatch[2]);
       body = { success: true, data: summaryBody(summaryMatch[1], params.get('location')) };
     } else if (url.endsWith('/accounts/')) {
@@ -334,6 +363,80 @@ describe('DashboardPage activity summary', () => {
       expect(summaryCalls(fetchMock)).toContain(
         '/api/v1/accounts/2/dashboard/activity-summary/?week_start=2026-07-20',
       ),
+    );
+  });
+});
+
+function attentionCalls(fetchMock: ReturnType<typeof stubApi>) {
+  return fetchMock.mock.calls
+    .map(([url]) => String(url))
+    .filter((url) => url.includes('/dashboard/attention/'));
+}
+
+describe('DashboardPage attention list', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('asks for an Account instead of fetching when none is selected', async () => {
+    const fetchMock = stubApi();
+    renderPage();
+
+    expect(
+      await screen.findByText('Choose an account to see what needs attention.'),
+    ).toBeInTheDocument();
+    expect(attentionCalls(fetchMock)).toEqual([]);
+  });
+
+  it('renders the Findings of the selected Account and week below the Activity Summary', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1&week=2026-07-13');
+
+    expect(await screen.findByText('Site for account 1')).toBeInTheDocument();
+    expect(attentionCalls(fetchMock)).toEqual([
+      '/api/v1/accounts/1/dashboard/attention/?week_start=2026-07-13',
+    ]);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(['Activity summary', 'Attention list']);
+  });
+
+  it('ignores the Location selector: it never sends a Location and does not refetch', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1&location=North');
+    await screen.findByText('Site for account 1');
+
+    fireEvent.change(locationSelect(), { target: { value: 'South' } });
+    await screen.findByRole('article', { name: 'Calls received' });
+
+    expect(attentionCalls(fetchMock)).toEqual([
+      '/api/v1/accounts/1/dashboard/attention/?week_start=2026-07-20',
+    ]);
+  });
+
+  it('refetches when the week changes', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1');
+    await screen.findByText('Site for account 1');
+
+    fireEvent.change(weekSelect(), { target: { value: '2026-07-13' } });
+
+    await waitFor(() =>
+      expect(attentionCalls(fetchMock)).toContain(
+        '/api/v1/accounts/1/dashboard/attention/?week_start=2026-07-13',
+      ),
+    );
+  });
+
+  it('refetches for the new Account when the Account changes', async () => {
+    const fetchMock = stubApi();
+    renderPage('?account=1');
+    await screen.findByText('Site for account 1');
+
+    fireEvent.change(accountSelect(), { target: { value: '2' } });
+
+    expect(await screen.findByText('Site for account 2')).toBeInTheDocument();
+    expect(attentionCalls(fetchMock)).toContain(
+      '/api/v1/accounts/2/dashboard/attention/?week_start=2026-07-20',
     );
   });
 });

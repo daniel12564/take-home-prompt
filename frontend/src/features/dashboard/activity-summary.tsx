@@ -2,13 +2,13 @@ import { useActivitySummary } from '../../api/dashboard';
 import type { EventType, Metric } from '../../lib/types';
 import { StatusBadge } from './status-badge';
 
-const METRIC_LABELS: Record<EventType, string> = {
+export const METRIC_LABELS: Record<EventType, string> = {
   call_received: 'Calls received',
   lead_created: 'Leads created',
   appointment_set: 'Appointments set',
 };
 
-function formatNumber(value: number): string {
+export function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 

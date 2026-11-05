@@ -40,3 +40,33 @@ export interface ActivitySummaryData {
   baseline_weeks_used: number;
   metrics: Metric[];
 }
+
+export type FindingKind = 'metric' | 'no_activity';
+
+export type FindingSeverity = 'warning' | 'critical';
+
+export interface Finding {
+  scope: 'account' | 'location';
+  location: string | null;
+  kind: FindingKind;
+  event_types: EventType[];
+  direction: 'above' | 'below';
+  severity: FindingSeverity;
+  current: number;
+  baseline: number | null;
+  delta_pct: number | null;
+  affected_locations: number | null;
+  total_locations: number | null;
+  concentrated_on: string | null;
+  explanation: string;
+}
+
+export type InsufficientReason = 'no_events' | 'short_history';
+
+export interface AttentionData {
+  account_id: number;
+  week_start: string;
+  week_end: string;
+  insufficient_reason: InsufficientReason | null;
+  findings: Finding[];
+}

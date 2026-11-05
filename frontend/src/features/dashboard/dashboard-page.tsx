@@ -11,6 +11,7 @@ import {
 import { defaultWeek, isSelectableWeek } from '../../lib/weeks';
 import { AccountSelector } from './account-selector';
 import { ActivitySummary } from './activity-summary';
+import { AttentionList } from './attention-list';
 import { LocationSelector } from './location-selector';
 import { WeekPicker } from './week-picker';
 
@@ -43,8 +44,9 @@ export function DashboardPage() {
           />
         </div>
       </header>
-      <main className='mx-auto max-w-5xl p-6'>
+      <main className='mx-auto flex max-w-5xl flex-col gap-8 p-6'>
         <ActivitySummary accountId={account} week={viewedWeek} location={location} />
+        <AttentionList accountId={account} week={viewedWeek} />
       </main>
     </div>
   );

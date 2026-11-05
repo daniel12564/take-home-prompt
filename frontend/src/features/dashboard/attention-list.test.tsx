@@ -1,0 +1,209 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { AttentionList } from './attention-list';
+
+const NO_ACTIVITY = {
+  scope: 'location',
+  location: 'South',
+  kind: 'no_activity',
+  event_types: ['call_received', 'lead_created', 'appointment_set'],
+  direction: 'below',
+  severity: 'critical',
+  current: 0,
+  baseline: null,
+  delta_pct: null,
+  affected_locations: null,
+  total_locations: null,
+  concentrated_on: null,
+  explanation:
+    'South recorded no calls, leads or appointments this week; it is normally active.',
+};
+
+const SURGE = {
+  scope: 'location',
+  location: 'North',
+  kind: 'metric',
+  event_types: ['call_received'],
+  direction: 'above',
+  severity: 'warning',
+  current: 11,
+  baseline: 5,
+  delta_pct: 120,
+  affected_locations: null,
+  total_locations: null,
+  concentrated_on: null,
+  explanation: 'North received 11 calls this week; it typically receives about 5.',
+};
+
+const DROP = {
+  ...SURGE,
+  location: 'East',
+  direction: 'below',
+  severity: 'critical',
+  current: 0,
+  delta_pct: -100,
+  explanation: 'East received 0 calls this week; it typically receives about 5.',
+};
+
+function payload(findings: unknown[], insufficientReason: string | null = null) {
+  return {
+    account_id: 1,
+    week_start: '2026-07-20',
+    week_end: '2026-07-26',
+    insufficient_reason: insufficientReason,
+    findings,
+  };
+}
+
+function stubFetch(body: unknown) {
+  const fetchMock = vi.fn(() =>
+    Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+function renderList(props: { accountId: string | null; week: string }) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AttentionList {...props} />
+    </QueryClientProvider>,
+  );
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('AttentionList', () => {
+  it('says nothing needs attention when there are no Findings', async () => {
+    stubFetch({ success: true, data: payload([]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    expect(await screen.findByText('Nothing needs attention this week.')).toBeInTheDocument();
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+  });
+
+  it('explains that there is not enough history instead of claiming nothing needs attention', async () => {
+    stubFetch({ success: true, data: payload([], 'short_history') });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    expect(
+      await screen.findByText(
+        'Not enough history yet: more weeks of activity are needed to tell what needs attention this week.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Nothing needs attention this week.')).not.toBeInTheDocument();
+  });
+
+  it('explains that an Account with no activity has nothing to compare against', async () => {
+    stubFetch({ success: true, data: payload([], 'no_events') });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    expect(
+      await screen.findByText(
+        'No activity has been recorded for this account yet, so there is nothing to compare against.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Nothing needs attention this week.')).not.toBeInTheDocument();
+  });
+
+  it('shows a loading state until the list arrives', async () => {
+    stubFetch({ success: true, data: payload([]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading findings…');
+    await screen.findByText('Nothing needs attention this week.');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows the API error message when the list cannot be loaded', async () => {
+    stubFetch({
+      success: false,
+      message: 'Internal server error.',
+      errors: {},
+      error_code: 'SERVER_ERROR',
+    });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Internal server error.');
+    expect(screen.queryByText('Nothing needs attention this week.')).not.toBeInTheDocument();
+  });
+
+  it('asks for an Account and does not call the API when none is selected', () => {
+    const fetchMock = stubFetch({ success: true, data: payload([]) });
+
+    renderList({ accountId: null, week: '2026-07-20' });
+
+    expect(screen.getByText('Choose an account to see what needs attention.')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('renders a critical card before a warning card, in the order the API ranks them', async () => {
+    stubFetch({ success: true, data: payload([NO_ACTIVITY, SURGE]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    const cards = await screen.findAllByRole('listitem');
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0]).getByText('South')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('Critical')).toBeInTheDocument();
+    expect(within(cards[1]).getByText('North')).toBeInTheDocument();
+    expect(within(cards[1]).getByText('Warning')).toBeInTheDocument();
+  });
+
+  it('words a no-activity Finding as a silent Location with its explanation', async () => {
+    stubFetch({ success: true, data: payload([NO_ACTIVITY]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    const card = await screen.findByRole('listitem');
+    expect(within(card).getByText('No activity')).toBeInTheDocument();
+    expect(within(card).getByText(NO_ACTIVITY.explanation)).toBeInTheDocument();
+    expect(within(card).queryByText(/Typical/)).not.toBeInTheDocument();
+  });
+
+  it('words a surge neutrally with this week and typical values', async () => {
+    stubFetch({ success: true, data: payload([SURGE]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    const card = await screen.findByRole('listitem');
+    expect(within(card).getByText('Calls received')).toBeInTheDocument();
+    expect(within(card).getByText('Above typical')).toBeInTheDocument();
+    expect(within(card).getByText('This week: 11')).toBeInTheDocument();
+    expect(within(card).getByText('Typical: 5')).toBeInTheDocument();
+    expect(within(card).getByText('+120%')).toBeInTheDocument();
+    expect(within(card).getByText(SURGE.explanation)).toBeInTheDocument();
+  });
+
+  it('words a drop as a drop', async () => {
+    stubFetch({ success: true, data: payload([DROP]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    const card = await screen.findByRole('listitem');
+    expect(within(card).getByText('Dropped')).toBeInTheDocument();
+    expect(within(card).getByText('This week: 0')).toBeInTheDocument();
+    expect(within(card).getByText('-100%')).toBeInTheDocument();
+  });
+
+  it('gives each Severity its own styling', async () => {
+    stubFetch({ success: true, data: payload([NO_ACTIVITY, SURGE]) });
+
+    renderList({ accountId: '1', week: '2026-07-20' });
+
+    const [critical, warning] = await screen.findAllByRole('listitem');
+    expect(critical).toHaveAttribute('data-severity', 'critical');
+    expect(warning).toHaveAttribute('data-severity', 'warning');
+    expect(critical.className).not.toBe(warning.className);
+  });
+});

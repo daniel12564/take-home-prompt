@@ -11,11 +11,10 @@ WEEK_START_MESSAGES = {
 }
 
 
-class ActivitySummaryParamsSerializer(serializers.Serializer):
-    '''Validates the query string; needs `account` in the context.'''
+class WeekParamsSerializer(serializers.Serializer):
+    '''Validates the optional `week_start` shared by every dashboard endpoint.'''
 
     week_start = serializers.DateField(required=False)
-    location = serializers.CharField(required=False, allow_blank=True)
 
     def validate_week_start(self, value):
         reason = periods.week_start_rejection(
@@ -30,12 +29,22 @@ class ActivitySummaryParamsSerializer(serializers.Serializer):
             )
         return value
 
+    def validate(self, attrs):
+        attrs.setdefault('week_start', periods.default_week_start(settings.DASHBOARD_REFERENCE_DATE))
+        return attrs
+
+
+class ActivitySummaryParamsSerializer(WeekParamsSerializer):
+    '''Validates the query string; needs `account` in the context.'''
+
+    location = serializers.CharField(required=False, allow_blank=True)
+
     def validate_location(self, value):
         if value and value not in ActivityEvent.objects.location_names(self.context['account']):
             raise serializers.ValidationError('Unknown location for this account.')
         return value or None
 
     def validate(self, attrs):
-        attrs.setdefault('week_start', periods.default_week_start(settings.DASHBOARD_REFERENCE_DATE))
+        attrs = super().validate(attrs)
         attrs.setdefault('location', None)
         return attrs
