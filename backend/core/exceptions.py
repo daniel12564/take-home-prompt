@@ -33,7 +33,7 @@ def _normalize_errors(detail):
 
 
 def exception_handler(exc, context):
-    """Global DRF exception handler returning the unified error envelope."""
+    '''Global DRF exception handler returning the unified error envelope.'''
     if isinstance(exc, Http404):
         exc = exceptions.NotFound()
 
@@ -62,11 +62,15 @@ def exception_handler(exc, context):
         return response
 
     logger.exception('Unhandled API exception', exc_info=exc)
-    return None
+    return error_response(
+        'Internal server error.',
+        error_code='INTERNAL_ERROR',
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 class NotFoundView(APIView):
-    """Catch-all for unknown routes; answers every method with the NOT_FOUND envelope."""
+    '''Catch-all for unknown routes; answers every method with the NOT_FOUND envelope.'''
 
     def initial(self, request, *args, **kwargs):
         raise exceptions.NotFound('Not found.')

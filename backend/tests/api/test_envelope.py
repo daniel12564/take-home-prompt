@@ -10,7 +10,15 @@ class _InvalidInputView(APIView):
         raise serializers.ValidationError({'week_start': ['Must be a Monday.']})
 
 
-urlpatterns = [path('api/v1/_invalid/', _InvalidInputView.as_view())]
+class _BoomView(APIView):
+    def get(self, request):
+        raise RuntimeError('boom')
+
+
+urlpatterns = [
+    path('api/v1/_invalid/', _InvalidInputView.as_view()),
+    path('api/v1/_boom/', _BoomView.as_view()),
+]
 
 
 def test_health_endpoint_returns_success_envelope():
@@ -40,4 +48,17 @@ def test_validation_failure_returns_validation_error_envelope():
         'message': 'Validation failed.',
         'errors': {'week_start': ['Must be a Monday.']},
         'error_code': 'VALIDATION_ERROR',
+    }
+
+
+@override_settings(ROOT_URLCONF='tests.api.test_envelope', DEBUG=True)
+def test_unhandled_exception_returns_internal_error_envelope_even_with_debug():
+    response = APIClient(raise_request_exception=False).get('/api/v1/_boom/')
+
+    assert response.status_code == 500
+    assert response.json() == {
+        'success': False,
+        'message': 'Internal server error.',
+        'errors': {},
+        'error_code': 'INTERNAL_ERROR',
     }
