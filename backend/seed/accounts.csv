@@ -1,0 +1,21 @@
+id,name,industry,timezone,created_at
+1,Summit Auto Group,Automotive Services,America/Chicago,2025-05-12 12:00:00
+2,Harbor Dental Partners,Dental,America/New_York,2025-01-04 12:00:00
+3,Bluebird HVAC,Home Services,America/Denver,2025-08-09 12:00:00
+4,Cornerstone Vet Clinics,Veterinary,America/Chicago,2025-04-05 12:00:00
+5,Pacific Smiles,Dental,America/Los_Angeles,2025-04-08 12:00:00
+6,Metro Collision Centers,Automotive Services,America/New_York,2025-04-22 12:00:00
+7,Desert Springs Plumbing,Home Services,America/Phoenix,2025-01-07 12:00:00
+8,Lakeside Physio,Healthcare,America/Chicago,2025-09-19 12:00:00
+9,Ironwood Fitness,Fitness,America/Denver,2025-05-24 12:00:00
+10,Gulf Coast Roofing,Home Services,America/Chicago,2025-08-12 12:00:00
+11,Northgate Optical,Healthcare,America/New_York,2025-09-01 12:00:00
+12,Redline Tire & Service,Automotive Services,America/Los_Angeles,2025-02-15 12:00:00
+13,Willow Creek Counseling,Healthcare,America/Chicago,2025-12-03 12:00:00
+14,Beacon Home Security,Home Services,America/New_York,2025-06-28 12:00:00
+15,Sierra Pest Solutions,Home Services,America/Phoenix,2025-11-19 12:00:00
+16,Old Town Barbers,Personal Care,America/Chicago,2025-03-10 12:00:00
+17,Evergreen Landscaping,Home Services,America/Los_Angeles,2025-01-16 12:00:00
+18,Capital City Storage,Storage,UTC,2025-03-07 12:00:00
+19,Riverbend Chiropractic,Healthcare,America/New_York,2025-08-02 12:00:00
+20,Quiet Harbor Spa,Personal Care,America/Los_Angeles,2025-12-04 12:00:00

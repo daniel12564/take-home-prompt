@@ -1,20 +1,28 @@
-import { useHealth } from '../../api/health';
+import { parseSelection, selectAccount, selectLocation, useUrlSearch } from '../../lib/url-state';
+import { AccountSelector } from './account-selector';
+import { LocationSelector } from './location-selector';
 
 export function DashboardPage() {
-  const { data, error, isPending } = useHealth();
+  const [search, setSearch] = useUrlSearch();
+  const { account, location } = parseSelection(search);
 
   return (
-    <main className='mx-auto max-w-3xl p-6'>
-      <h1 className='text-2xl font-semibold text-slate-900'>Relay reporting dashboard</h1>
-      <section className='mt-6 rounded-lg border border-slate-200 bg-white p-4'>
-        {isPending && <p className='text-slate-500'>Loading…</p>}
-        {error && (
-          <p role='alert' className='text-red-700'>
-            {error.message}
-          </p>
-        )}
-        {data && <p className='text-green-700'>API status: {data.status}</p>}
-      </section>
-    </main>
+    <div className='min-h-screen'>
+      <header className='border-b border-slate-200 bg-white'>
+        <div className='mx-auto flex max-w-5xl flex-wrap items-end gap-4 px-6 py-4'>
+          <h1 className='mr-auto text-xl font-semibold text-slate-900'>Relay reporting dashboard</h1>
+          <AccountSelector
+            value={account}
+            onChange={(next) => setSearch(selectAccount(search, next))}
+          />
+          <LocationSelector
+            accountId={account}
+            value={location}
+            onChange={(next) => setSearch(selectLocation(search, next))}
+          />
+        </div>
+      </header>
+      <main className='mx-auto max-w-5xl p-6' />
+    </div>
   );
 }

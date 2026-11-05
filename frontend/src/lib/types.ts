@@ -12,6 +12,9 @@ export interface ApiFailure {
 
 export type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure;
 
-export interface HealthStatus {
-  status: string;
+export interface Account {
+  id: number;
+  name: string;
+  timezone: string;
+  location_count: number;
 }

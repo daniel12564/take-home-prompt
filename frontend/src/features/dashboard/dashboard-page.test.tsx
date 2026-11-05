@@ -1,10 +1,45 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardPage } from './dashboard-page';
 
-function renderPage() {
+const ACCOUNTS = [
+  { id: 1, name: 'Summit Auto Group', timezone: 'America/Chicago', location_count: 3 },
+  { id: 2, name: 'Harbor Dental Partners', timezone: 'America/New_York', location_count: 1 },
+  { id: 20, name: 'Quiet Harbor Spa', timezone: 'America/Los_Angeles', location_count: 0 },
+];
+
+const LOCATIONS: Record<string, string[]> = {
+  '1': ['East', 'North', 'South'],
+  '2': ['Site A'],
+  '20': [],
+};
+
+function stubApi() {
+  const fetchMock = vi.fn((url: string) => {
+    const locationsMatch = url.match(/\/accounts\/(\d+)\/locations\/$/);
+    let body: unknown;
+    if (url.endsWith('/accounts/')) {
+      body = { success: true, data: ACCOUNTS };
+    } else if (locationsMatch) {
+      body = { success: true, data: LOCATIONS[locationsMatch[1]] };
+    } else {
+      body = {
+        success: false,
+        message: 'Not found.',
+        errors: {},
+        error_code: 'NOT_FOUND',
+      };
+    }
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+function renderPage(search = '') {
+  window.history.replaceState(null, '', `/${search}`);
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -15,37 +50,114 @@ function renderPage() {
   );
 }
 
-function stubFetch(status: number, body: unknown) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-  });
-  vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
+function accountSelect() {
+  return screen.getByLabelText('Account') as HTMLSelectElement;
 }
 
-describe('DashboardPage', () => {
+function locationSelect() {
+  return screen.getByLabelText('Location') as HTMLSelectElement;
+}
+
+describe('DashboardPage header selectors', () => {
+  beforeEach(() => {
+    stubApi();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('shows loading, then the API status from the success envelope', async () => {
-    stubFetch(200, { success: true, data: { status: 'ok' } });
-
+  it('lists every Account with its name and Location count', async () => {
     renderPage();
 
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
-    expect(await screen.findByText(/api status: ok/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('option', { name: 'Summit Auto Group (3 locations)' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Harbor Dental Partners (1 location)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Quiet Harbor Spa (0 locations)' })).toBeInTheDocument();
   });
 
-  it('shows the error message from the failure envelope', async () => {
-    stubFetch(500, {
-      success: false,
-      message: 'Internal server error.',
-      errors: {},
-      error_code: 'SERVER_ERROR',
-    });
+  it('stores the chosen Account in the URL and offers its Locations', async () => {
+    renderPage();
+    await screen.findByRole('option', { name: 'Summit Auto Group (3 locations)' });
+
+    fireEvent.change(accountSelect(), { target: { value: '1' } });
+
+    expect(window.location.search).toBe('?account=1');
+    expect(await screen.findByRole('option', { name: 'North' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All locations' })).toBeInTheDocument();
+    const names = Array.from(locationSelect().options).map((option) => option.text);
+    expect(names).toEqual(['All locations', 'East', 'North', 'South']);
+  });
+
+  it('restores both selections from the URL on load', async () => {
+    renderPage('?account=1&location=North');
+
+    await waitFor(() => expect(locationSelect().value).toBe('North'));
+    expect(accountSelect().value).toBe('1');
+  });
+
+  it('stores the chosen Location in the URL and clears it with All locations', async () => {
+    renderPage('?account=1');
+    await screen.findByRole('option', { name: 'South' });
+
+    fireEvent.change(locationSelect(), { target: { value: 'South' } });
+    expect(window.location.search).toBe('?account=1&location=South');
+
+    fireEvent.change(locationSelect(), { target: { value: '' } });
+    expect(window.location.search).toBe('?account=1');
+  });
+
+  it('clears the Location when the Account changes', async () => {
+    renderPage('?account=1&location=North');
+    await waitFor(() => expect(locationSelect().value).toBe('North'));
+
+    fireEvent.change(accountSelect(), { target: { value: '2' } });
+
+    expect(window.location.search).toBe('?account=2');
+    await waitFor(() => expect(locationSelect().value).toBe(''));
+    expect(await screen.findByRole('option', { name: 'Site A' })).toBeInTheDocument();
+  });
+
+  it('keeps other URL params when the Account changes', async () => {
+    renderPage('?account=1&week=2026-07-20&location=North');
+    await screen.findByRole('option', { name: 'Harbor Dental Partners (1 location)' });
+
+    fireEvent.change(accountSelect(), { target: { value: '2' } });
+
+    expect(window.location.search).toBe('?account=2&week=2026-07-20');
+  });
+
+  it('disables the Location selector with an explanation when the Account has no Locations', async () => {
+    renderPage('?account=20');
+
+    expect(await screen.findByText('This account has no locations yet.')).toBeInTheDocument();
+    expect(locationSelect()).toBeDisabled();
+  });
+
+  it('disables the Location selector until an Account is chosen', async () => {
+    renderPage();
+    await screen.findByRole('option', { name: 'Summit Auto Group (3 locations)' });
+
+    expect(locationSelect()).toBeDisabled();
+    expect(screen.getByText('Choose an account first.')).toBeInTheDocument();
+  });
+
+  it('shows the API error message when the Accounts cannot be loaded', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () =>
+          Promise.resolve({
+            success: false,
+            message: 'Internal server error.',
+            errors: {},
+            error_code: 'SERVER_ERROR',
+          }),
+      }),
+    );
 
     renderPage();
 
