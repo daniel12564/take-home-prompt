@@ -17,6 +17,14 @@ const SEVERITY_STYLES: Record<FindingSeverity, { label: string; card: string; ba
   },
 };
 
+// A surge is worth a look but is not a problem, so it never takes the red styling of a drop,
+// whatever its Severity; the Severity itself (label, order, data attribute) is unchanged.
+function severityStyle(finding: Finding) {
+  const style = SEVERITY_STYLES[finding.severity];
+  if (finding.direction !== 'above') return style;
+  return { ...SEVERITY_STYLES.warning, label: style.label };
+}
+
 const INSUFFICIENT_MESSAGES: Record<NonNullable<AttentionData['insufficient_reason']>, string> = {
   short_history:
     'Not enough history yet: more weeks of activity are needed to tell what needs attention this week.',
@@ -39,7 +47,7 @@ function formatPercent(value: number): string {
 }
 
 function AccountWideCard({ finding }: { finding: Finding }) {
-  const severity = SEVERITY_STYLES[finding.severity];
+  const severity = severityStyle(finding);
   const byMetric = Object.entries(finding.affected_by_metric ?? {}) as [EventType, number][];
   return (
     <li
@@ -84,7 +92,7 @@ function AccountWideCard({ finding }: { finding: Finding }) {
 }
 
 function FindingCard({ finding }: { finding: Finding }) {
-  const severity = SEVERITY_STYLES[finding.severity];
+  const severity = severityStyle(finding);
   return (
     <li
       data-scope='location'

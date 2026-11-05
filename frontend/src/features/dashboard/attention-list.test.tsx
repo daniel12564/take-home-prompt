@@ -241,6 +241,25 @@ describe('AttentionList', () => {
     expect(critical.className).not.toBe(warning.className);
   });
 
+  it('styles a critical surge as amber, never as the red problem styling, and keeps its Severity', async () => {
+    const criticalSurge = { ...SURGE, severity: 'critical', current: 12, delta_pct: 140 };
+    stubFetch({ success: true, data: payload([ACCOUNT_WIDE, criticalSurge, NO_ACTIVITY]) });
+
+    renderList({ accountId: '1', week: '2026-06-01' });
+
+    const [accountWide, surge, silent] = await screen.findAllByRole('listitem');
+    for (const card of [accountWide, surge]) {
+      expect(card).toHaveAttribute('data-severity', 'critical');
+      const badge = within(card).getByText('Critical');
+      expect(badge.className).toContain('amber');
+      expect(badge.className).not.toContain('red');
+      expect(card.className).not.toContain('red');
+    }
+    expect(surge.className).toContain('amber');
+    expect(within(silent).getByText('Critical').className).toContain('red');
+    expect(silent.className).toContain('red');
+  });
+
   it('renders an Account-wide card above the per-Location cards', async () => {
     stubFetch({ success: true, data: payload([ACCOUNT_WIDE, NO_ACTIVITY, SURGE]) });
 
