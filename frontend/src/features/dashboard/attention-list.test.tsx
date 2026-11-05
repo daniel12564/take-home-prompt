@@ -156,6 +156,22 @@ describe('AttentionList', () => {
     expect(screen.queryByText('Nothing needs attention this week.')).not.toBeInTheDocument();
   });
 
+  it('shows the per-field validation messages when the week is rejected', async () => {
+    stubFetch({
+      success: false,
+      message: 'Validation failed.',
+      errors: { week_start: ['week_start must be a Monday.'] },
+      error_code: 'VALIDATION_ERROR',
+    });
+
+    renderList({ accountId: '1', week: '2026-07-21' });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Validation failed.');
+    expect(alert).toHaveTextContent('week_start must be a Monday.');
+    expect(screen.queryByText('Nothing needs attention this week.')).not.toBeInTheDocument();
+  });
+
   it('asks for an Account and does not call the API when none is selected', () => {
     const fetchMock = stubFetch({ success: true, data: payload([]) });
 

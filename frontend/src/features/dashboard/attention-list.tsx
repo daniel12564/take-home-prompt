@@ -2,6 +2,7 @@ import { useAttention } from '../../api/dashboard';
 import type { AttentionData, EventType, Finding, FindingSeverity } from '../../lib/types';
 import { dayLabel } from '../../lib/weeks';
 import { METRIC_LABELS, formatNumber } from './activity-summary';
+import { ErrorMessage } from './error-message';
 
 const SEVERITY_STYLES: Record<FindingSeverity, { label: string; card: string; badge: string }> = {
   critical: {
@@ -133,11 +134,7 @@ export function AttentionList({ accountId, week }: AttentionListProps) {
           Loading findings…
         </p>
       )}
-      {error && (
-        <p role='alert' className='text-sm text-red-700'>
-          {error.message}
-        </p>
-      )}
+      {error && <ErrorMessage error={error} />}
       {data && data.insufficient_reason && (
         <p className='text-sm text-slate-500'>{INSUFFICIENT_MESSAGES[data.insufficient_reason]}</p>
       )}

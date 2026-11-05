@@ -1,5 +1,6 @@
 import { useActivitySummary } from '../../api/dashboard';
 import type { ActivitySummaryData, EventType, Metric } from '../../lib/types';
+import { ErrorMessage } from './error-message';
 import { StatusBadge } from './status-badge';
 
 export const METRIC_LABELS: Record<EventType, string> = {
@@ -56,11 +57,7 @@ export function ActivitySummary({ accountId, week, location }: ActivitySummaryPr
           Loading activity…
         </p>
       )}
-      {error && (
-        <p role='alert' className='text-sm text-red-700'>
-          {error.message}
-        </p>
-      )}
+      {error && <ErrorMessage error={error} />}
       {data && data.metrics.length === 0 && (
         <p className='text-sm text-slate-500'>No activity data for this selection.</p>
       )}

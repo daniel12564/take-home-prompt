@@ -89,6 +89,42 @@ describe('ActivitySummary', () => {
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
   });
 
+  it('shows the per-field validation messages when the location is unknown', async () => {
+    stubFetch({
+      success: false,
+      message: 'Validation failed.',
+      errors: { location: ['Unknown location for this account.'] },
+      error_code: 'VALIDATION_ERROR',
+    });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: 'Nowhere' });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Validation failed.');
+    expect(alert).toHaveTextContent('location: Unknown location for this account.');
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
+
+  it('shows every field message and does not repeat a field name the message already starts with', async () => {
+    stubFetch({
+      success: false,
+      message: 'Validation failed.',
+      errors: {
+        week_start: ['week_start must be a Monday.'],
+        location: ['Unknown location for this account.', 'Second problem.'],
+      },
+      error_code: 'VALIDATION_ERROR',
+    });
+
+    renderSummary({ accountId: '1', week: '2026-07-21', location: 'Nowhere' });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('week_start must be a Monday.');
+    expect(alert).not.toHaveTextContent('week_start: week_start');
+    expect(alert).toHaveTextContent('location: Unknown location for this account.');
+    expect(alert).toHaveTextContent('location: Second problem.');
+  });
+
   it('shows a loading state until the summary arrives', async () => {
     stubFetch({ success: true, data: PAYLOAD });
 
