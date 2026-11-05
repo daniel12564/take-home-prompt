@@ -159,14 +159,14 @@ def order_key(finding):
     return (finding.scope != 'account', tier, -size, finding.location or '', finding.event_types)
 
 
-def concentrated_day(day_rows, event_types, rules):
-    '''The local day holding more than `one_day_concentration_share` of these Metrics' events, if any.
+def concentrated_day(day_rows, event_type, rules):
+    '''The local day holding more than `one_day_concentration_share` of one Metric's events, if any.
 
-    `day_rows` carry `event_type`, `day` and `count`; only rows of `event_types` are pooled.
+    `day_rows` carry `event_type`, `day` and `count`; only rows of `event_type` are counted.
     '''
     per_day = {}
     for row in day_rows:
-        if row['event_type'] in event_types:
+        if row['event_type'] == event_type:
             per_day[row['day']] = per_day.get(row['day'], 0) + row['count']
     if not per_day:
         return None
@@ -176,11 +176,23 @@ def concentrated_day(day_rows, event_types, rules):
     return None
 
 
+def finding_concentrated_day(finding, day_rows, rules):
+    '''The day of the first of the Finding's Metrics, in order, that is concentrated on one day.
+
+    Each Metric is tested on its own; events of different Metrics are never pooled.
+    '''
+    for event_type in finding.event_types:
+        day = concentrated_day(day_rows, event_type, rules)
+        if day is not None:
+            return day
+    return None
+
+
 def name_concentration(found, day_rows, rules):
-    '''`found` with the day callout added to every Account-wide Finding whose week was concentrated.'''
+    '''`found` with the day callout added to every Account-wide Finding with a concentrated Metric.'''
     named = []
     for finding in found:
-        day = concentrated_day(day_rows, finding.event_types, rules) if finding.scope == 'account' else None
+        day = finding_concentrated_day(finding, day_rows, rules) if finding.scope == 'account' else None
         if day is None:
             named.append(finding)
             continue

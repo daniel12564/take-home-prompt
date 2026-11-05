@@ -347,13 +347,35 @@ def test_only_the_events_of_the_findings_own_metrics_count_toward_the_concentrat
     assert findings.name_concentration(found, rows, RULES) == found
 
 
-def test_a_merged_finding_pools_the_events_of_all_its_metrics():
+def test_a_merged_finding_with_no_concentrated_metric_names_no_day():
     found = build(*locations(3, 3, call_received=20, lead_created=8))
-    rows = day_rows('call_received', d3=30, d4=30) + day_rows('lead_created', d3=24)
+    rows = day_rows('call_received', d3=25, d4=25, d5=25) + day_rows('lead_created', d3=10, d4=10)
 
     result = findings.name_concentration(found, rows, RULES)
 
     assert result[0].event_types == ('call_received', 'lead_created')
+    assert result == found
+    assert result[0].concentrated_on is None
+
+
+def test_a_merged_finding_names_the_day_of_a_metric_swamped_by_another_when_pooled():
+    found = build(*locations(3, 3, call_received=20, lead_created=8))
+    # Pooled, no day holds 60% of the 98 events; Friday holds 24 of the 28 leads.
+    rows = day_rows('call_received', d3=30, d4=30, d6=10) + day_rows('lead_created', d5=24, d4=4)
+
+    result = findings.name_concentration(found, rows, RULES)
+
+    assert result[0].event_types == ('call_received', 'lead_created')
+    assert result[0].concentrated_on == date(2026, 6, 5)
+    assert result[0].explanation.endswith("Most of this week's events happened on Fri 5 Jun.")
+
+
+def test_a_merged_finding_names_the_first_concentrated_metric_when_several_qualify():
+    found = build(*locations(3, 3, call_received=20, lead_created=8))
+    rows = day_rows('call_received', d3=40, d4=5) + day_rows('lead_created', d5=24)
+
+    result = findings.name_concentration(found, rows, RULES)
+
     assert result[0].concentrated_on == date(2026, 6, 3)
 
 

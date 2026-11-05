@@ -262,6 +262,29 @@ def test_a_week_whose_calls_piled_onto_one_local_day_names_that_day(dashboard_fi
     assert finding['explanation'].endswith("Most of this week's events happened on Wed 24 Jun.")
 
 
+def test_a_merged_finding_names_the_day_of_the_one_metric_that_is_concentrated(dashboard_fixture):
+    account = dashboard_fixture.account_a
+    wednesday = datetime(2026, 6, 24, 10, 0, tzinfo=ZoneInfo(account.timezone))
+    # Leads surge at every Location, all on Wednesday; the surging calls stay spread over the week.
+    for location in ('North', 'South', 'East'):
+        ActivityEvent.objects.bulk_create(
+            ActivityEvent(
+                account=account,
+                location=location,
+                event_type=ActivityEvent.EventType.LEAD_CREATED,
+                occurred_at=wednesday,
+            )
+            for _ in range(9)
+        )
+
+    finding = attention(account.id, week_start='2026-06-22').json()['data']['findings'][0]
+
+    assert finding['scope'] == 'account'
+    assert finding['event_types'] == ['call_received', 'lead_created']
+    assert finding['concentrated_on'] == '2026-06-24'
+    assert finding['explanation'].endswith("Most of this week's events happened on Wed 24 Jun.")
+
+
 def test_an_evenly_spread_week_names_no_day(dashboard_fixture):
     finding = attention(dashboard_fixture.account_a.id, week_start='2026-06-22').json()['data'][
         'findings'
