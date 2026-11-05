@@ -83,7 +83,7 @@ describe('DashboardPage header selectors', () => {
 
     fireEvent.change(accountSelect(), { target: { value: '1' } });
 
-    expect(window.location.search).toBe('?account=1');
+    expect(window.location.search).toBe('?week=2026-07-20&account=1');
     expect(await screen.findByRole('option', { name: 'North' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'All locations' })).toBeInTheDocument();
     const names = Array.from(locationSelect().options).map((option) => option.text);
@@ -102,19 +102,19 @@ describe('DashboardPage header selectors', () => {
     await screen.findByRole('option', { name: 'South' });
 
     fireEvent.change(locationSelect(), { target: { value: 'South' } });
-    expect(window.location.search).toBe('?account=1&location=South');
+    expect(window.location.search).toBe('?account=1&week=2026-07-20&location=South');
 
     fireEvent.change(locationSelect(), { target: { value: '' } });
-    expect(window.location.search).toBe('?account=1');
+    expect(window.location.search).toBe('?account=1&week=2026-07-20');
   });
 
   it('clears the Location when the Account changes', async () => {
-    renderPage('?account=1&location=North');
+    renderPage('?account=1&week=2026-07-20&location=North');
     await waitFor(() => expect(locationSelect().value).toBe('North'));
 
     fireEvent.change(accountSelect(), { target: { value: '2' } });
 
-    expect(window.location.search).toBe('?account=2');
+    expect(window.location.search).toBe('?account=2&week=2026-07-20');
     await waitFor(() => expect(locationSelect().value).toBe(''));
     expect(await screen.findByRole('option', { name: 'Site A' })).toBeInTheDocument();
   });
@@ -162,5 +162,73 @@ describe('DashboardPage header selectors', () => {
     renderPage();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Internal server error.');
+  });
+});
+
+function weekSelect() {
+  return screen.getByLabelText('Week') as HTMLSelectElement;
+}
+
+describe('DashboardPage week picker', () => {
+  beforeEach(() => {
+    stubApi();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('lists the complete weeks newest first with readable labels', async () => {
+    renderPage();
+
+    const labels = Array.from(weekSelect().options).map((option) => option.text);
+    expect(labels).toHaveLength(25);
+    expect(labels[0]).toBe('Jul 20 – Jul 26, 2026');
+    expect(labels[1]).toBe('Jul 13 – Jul 19, 2026');
+    expect(labels[24]).toBe('Feb 2 – Feb 8, 2026');
+    expect(screen.queryByRole('option', { name: /Jul 27/ })).not.toBeInTheDocument();
+  });
+
+  it('opens on the default week and writes it to the URL when week is missing', async () => {
+    renderPage('?account=1');
+
+    await waitFor(() => expect(window.location.search).toBe('?account=1&week=2026-07-20'));
+    expect(weekSelect().value).toBe('2026-07-20');
+  });
+
+  it.each(['2026-07-27', '2026-07-21', '2025-01-06', 'junk'])(
+    'falls back to the default week and fixes the URL when week is %s',
+    async (week) => {
+      renderPage(`?account=1&week=${week}`);
+
+      await waitFor(() => expect(window.location.search).toBe('?account=1&week=2026-07-20'));
+      expect(weekSelect().value).toBe('2026-07-20');
+    },
+  );
+
+  it('keeps a valid week from the URL', async () => {
+    renderPage('?account=1&week=2026-03-02');
+
+    expect(weekSelect().value).toBe('2026-03-02');
+    expect(window.location.search).toBe('?account=1&week=2026-03-02');
+  });
+
+  it('stores the chosen week in the URL', async () => {
+    renderPage('?account=1');
+
+    fireEvent.change(weekSelect(), { target: { value: '2026-07-13' } });
+
+    expect(window.location.search).toBe('?account=1&week=2026-07-13');
+    expect(weekSelect().value).toBe('2026-07-13');
+  });
+
+  it('keeps the selected week and drops the Location when the Account changes', async () => {
+    renderPage('?account=1&week=2026-05-04&location=North');
+    await screen.findByRole('option', { name: 'Harbor Dental Partners (1 location)' });
+
+    fireEvent.change(accountSelect(), { target: { value: '2' } });
+
+    expect(window.location.search).toBe('?account=2&week=2026-05-04');
+    expect(weekSelect().value).toBe('2026-05-04');
   });
 });

@@ -1,10 +1,25 @@
-import { parseSelection, selectAccount, selectLocation, useUrlSearch } from '../../lib/url-state';
+import { useEffect } from 'react';
+
+import {
+  normalizeWeek,
+  parseSelection,
+  selectAccount,
+  selectLocation,
+  selectWeek,
+  useUrlSearch,
+} from '../../lib/url-state';
+import { defaultWeek, isSelectableWeek } from '../../lib/weeks';
 import { AccountSelector } from './account-selector';
 import { LocationSelector } from './location-selector';
+import { WeekPicker } from './week-picker';
 
 export function DashboardPage() {
   const [search, setSearch] = useUrlSearch();
-  const { account, location } = parseSelection(search);
+  const { account, week, location } = parseSelection(search);
+
+  useEffect(() => {
+    setSearch(normalizeWeek(search), { replace: true });
+  }, [search, setSearch]);
 
   return (
     <div className='min-h-screen'>
@@ -14,6 +29,10 @@ export function DashboardPage() {
           <AccountSelector
             value={account}
             onChange={(next) => setSearch(selectAccount(search, next))}
+          />
+          <WeekPicker
+            value={isSelectableWeek(week) ? week : defaultWeek()}
+            onChange={(next) => setSearch(selectWeek(search, next))}
           />
           <LocationSelector
             accountId={account}

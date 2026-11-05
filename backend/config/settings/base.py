@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from pathlib import Path
 
 import dj_database_url
@@ -82,3 +83,9 @@ REST_FRAMEWORK = {
     'UNAUTHENTICATED_USER': None,
     'EXCEPTION_HANDLER': 'core.exceptions.exception_handler',
 }
+
+# The dashboard treats this fixed date as 'today' (see GLOSSARY: Reference Date); the seed ends on
+# 2026-07-27, so the real date would produce an empty dashboard.
+DASHBOARD_REFERENCE_DATE = date(2026, 7, 27)
+# First day with seeded Activity Events; the first selectable Reporting Week is the Monday on or after it.
+DASHBOARD_DATA_START_DATE = date(2026, 2, 1)
