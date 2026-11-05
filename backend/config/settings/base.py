@@ -91,7 +91,7 @@ DASHBOARD_REFERENCE_DATE = date(2026, 7, 27)
 DASHBOARD_DATA_START_DATE = date(2026, 2, 1)
 
 # Every constant of the normality rules (see ADR-0001 and PLAN_REFINED 3.5); nothing else may hardcode them.
-# The rollup_* and one_day_* keys are consumed by the Account-wide Findings (ticket 07).
+# The rollup_* and one_day_* keys are consumed by the Account-wide Findings.
 DASHBOARD_RULES = {
     'baseline_weeks': 8,
     'min_baseline_weeks': 4,

@@ -1,7 +1,7 @@
 import { useAttention } from '../../api/dashboard';
+import { METRIC_LABELS, formatNumber, formatSigned, noEventsMessage } from '../../lib/format';
 import type { AttentionData, EventType, Finding, FindingSeverity } from '../../lib/types';
 import { dayLabel } from '../../lib/weeks';
-import { METRIC_LABELS, formatNumber } from './activity-summary';
 import { ErrorMessage } from './error-message';
 
 const SEVERITY_STYLES: Record<FindingSeverity, { label: string; card: string; badge: string }> = {
@@ -28,8 +28,7 @@ function severityStyle(finding: Finding) {
 const INSUFFICIENT_MESSAGES: Record<NonNullable<AttentionData['insufficient_reason']>, string> = {
   short_history:
     'Not enough history yet: more weeks of activity are needed to tell what needs attention this week.',
-  no_events:
-    'No activity has been recorded for this account yet, so there is nothing to compare against.',
+  no_events: noEventsMessage(),
 };
 
 function metricLabel(finding: Finding): string {
@@ -43,7 +42,7 @@ function directionLabel(finding: Finding): string {
 }
 
 function formatPercent(value: number): string {
-  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${formatNumber(Math.abs(value))}%`;
+  return formatSigned(value, '%');
 }
 
 function AccountWideCard({ finding }: { finding: Finding }) {

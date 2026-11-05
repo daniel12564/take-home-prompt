@@ -1,22 +1,8 @@
 import { useActivitySummary } from '../../api/dashboard';
-import type { ActivitySummaryData, EventType, Metric } from '../../lib/types';
+import { METRIC_LABELS, formatNumber, formatSigned, noEventsMessage } from '../../lib/format';
+import type { ActivitySummaryData, Metric } from '../../lib/types';
 import { ErrorMessage } from './error-message';
 import { StatusBadge } from './status-badge';
-
-export const METRIC_LABELS: Record<EventType, string> = {
-  call_received: 'Calls received',
-  lead_created: 'Leads created',
-  appointment_set: 'Appointments set',
-};
-
-export function formatNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
-function formatSigned(value: number, suffix = ''): string {
-  if (value === 0) return `0${suffix}`;
-  return `${value > 0 ? '+' : '-'}${formatNumber(Math.abs(value))}${suffix}`;
-}
 
 function formatDelta(metric: Metric): string | null {
   if (metric.delta === null) return null;
@@ -26,7 +12,7 @@ function formatDelta(metric: Metric): string | null {
 
 function insufficientMessage(reason: ActivitySummaryData['insufficient_reason'], location: string | null) {
   if (reason === 'no_events') {
-    return `No activity has been recorded for this ${location ? 'location' : 'account'} yet, so there is nothing to compare against.`;
+    return noEventsMessage(location);
   }
   return 'Not enough history yet: more weeks of activity are needed to judge this week.';
 }
