@@ -1,0 +1,22 @@
+[project]
+name = 'relay-dashboard-api'
+version = '0.1.0'
+description = 'Relay reporting dashboard API (DASH-247)'
+requires-python = '>=3.12,<3.13'
+dependencies = [
+    'django>=5.1,<6.0',
+    'djangorestframework>=3.15',
+    'psycopg[binary]>=3.2',
+    'dj-database-url>=2.2',
+]
+
+[dependency-groups]
+dev = [
+    'pytest>=8.3',
+    'pytest-django>=4.9',
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = 'config.settings.development'
+python_files = ['test_*.py']
+testpaths = ['tests']
