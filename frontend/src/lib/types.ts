@@ -58,6 +58,7 @@ export interface Finding {
   affected_locations: number | null;
   total_locations: number | null;
   concentrated_on: string | null;
+  affected_by_metric: Partial<Record<EventType, number>> | null;
   explanation: string;
 }
 

@@ -60,16 +60,21 @@ def activity_summary(account, week_start, location):
 
 
 def attention(account, week_start):
-    '''Attention List payload: the ordered per-Location Findings of the whole Account.'''
+    '''Attention List payload: the ordered Findings of the whole Account.
+
+    The daily-grouped query for the one-day callout runs only when an Account-wide Finding exists.
+    '''
     week, window = baseline_window(account, week_start)
     rows = ActivityEvent.objects.weekly_counts(account, [*window, week.start])
+    found = findings.build(rows, week.start, window, settings.DASHBOARD_RULES)
+    if any(finding.scope == 'account' for finding in found):
+        found = findings.name_concentration(
+            found, ActivityEvent.objects.daily_counts(account, week.start), settings.DASHBOARD_RULES
+        )
     return {
         'account_id': account.id,
         'week_start': week.start.isoformat(),
         'week_end': week.end.isoformat(),
         'insufficient_reason': findings.insufficient_reason(rows, window, settings.DASHBOARD_RULES),
-        'findings': [
-            asdict(finding)
-            for finding in findings.build(rows, week.start, window, settings.DASHBOARD_RULES)
-        ],
+        'findings': [asdict(finding) for finding in found],
     }

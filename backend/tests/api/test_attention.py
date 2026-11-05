@@ -45,6 +45,7 @@ def test_findings_carry_the_agreed_shape_with_the_account_wide_fields_null(dashb
             'affected_locations': None,
             'total_locations': None,
             'concentrated_on': None,
+            'affected_by_metric': None,
             'explanation': (
                 'South recorded no calls, leads or appointments this week; it is normally active.'
             ),
@@ -62,6 +63,7 @@ def test_findings_carry_the_agreed_shape_with_the_account_wide_fields_null(dashb
             'affected_locations': None,
             'total_locations': None,
             'concentrated_on': None,
+            'affected_by_metric': None,
             'explanation': 'North received 11 calls this week; it typically receives about 5.',
         },
     ]
@@ -173,3 +175,77 @@ def test_query_count_does_not_grow_with_the_number_of_locations(
     findings = response.json()['data']['findings']
     assert response.status_code == 200
     assert len([f for f in findings if f['kind'] == 'no_activity']) == 21
+
+
+def test_week_6_where_every_location_has_4x_calls_is_one_account_wide_finding_and_no_location_cards(
+    dashboard_fixture,
+):
+    data = attention(dashboard_fixture.account_a.id, week_start='2026-06-22').json()['data']
+
+    assert len(data['findings']) == 1
+    finding = data['findings'][0]
+    assert finding['scope'] == 'account'
+    assert finding['location'] is None
+    assert finding['kind'] == 'metric'
+    assert finding['event_types'] == ['call_received']
+    assert finding['direction'] == 'above'
+    assert finding['affected_locations'] == 3
+    assert finding['total_locations'] == 3
+    assert finding['affected_by_metric'] == {'call_received': 3}
+    assert finding['concentrated_on'] is None
+    assert [f for f in data['findings'] if f['scope'] == 'location'] == []
+
+
+def test_an_account_wide_finding_costs_exactly_one_extra_query(
+    dashboard_fixture, django_assert_num_queries
+):
+    with django_assert_num_queries(3):
+        response = attention(dashboard_fixture.account_a.id, week_start='2026-06-22')
+
+    assert response.json()['data']['findings'][0]['scope'] == 'account'
+
+
+def test_the_default_week_is_unchanged_and_needs_no_extra_query(
+    dashboard_fixture, django_assert_num_queries
+):
+    with django_assert_num_queries(2):
+        data = attention(dashboard_fixture.account_a.id).json()['data']
+
+    assert [(f['scope'], f['location']) for f in data['findings']] == [
+        ('location', 'South'),
+        ('location', 'North'),
+    ]
+
+
+def add_calls(account, moment, count):
+    ActivityEvent.objects.bulk_create(
+        ActivityEvent(
+            account=account,
+            location='North',
+            event_type=ActivityEvent.EventType.CALL_RECEIVED,
+            occurred_at=moment,
+        )
+        for _ in range(count)
+    )
+
+
+def test_a_week_whose_calls_piled_onto_one_local_day_names_that_day(dashboard_fixture):
+    account = dashboard_fixture.account_a
+    zone = ZoneInfo(account.timezone)
+    # 23:30 on Wednesday 24 June in Chicago is already Thursday in UTC.
+    add_calls(account, datetime(2026, 6, 24, 23, 30, tzinfo=zone), 200)
+
+    finding = attention(account.id, week_start='2026-06-22').json()['data']['findings'][0]
+
+    assert finding['scope'] == 'account'
+    assert finding['concentrated_on'] == '2026-06-24'
+    assert finding['explanation'].endswith("Most of this week's events happened on Wed 24 Jun.")
+
+
+def test_an_evenly_spread_week_names_no_day(dashboard_fixture):
+    finding = attention(dashboard_fixture.account_a.id, week_start='2026-06-22').json()['data'][
+        'findings'
+    ][0]
+
+    assert finding['concentrated_on'] is None
+    assert 'Most of this week' not in finding['explanation']

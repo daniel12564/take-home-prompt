@@ -3,6 +3,7 @@ const REFERENCE_DATE = '2026-07-27';
 const FIRST_WEEK = '2026-02-02';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function toUtc(day: string) {
@@ -40,4 +41,9 @@ export function weekLabel(week: string) {
   const monday = toUtc(week);
   const sunday = monday + 6 * DAY_MS;
   return `${shortDate(monday)} – ${shortDate(sunday)}, ${new Date(sunday).getUTCFullYear()}`;
+}
+
+export function dayLabel(day: string) {
+  const date = new Date(toUtc(day));
+  return `${WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`;
 }

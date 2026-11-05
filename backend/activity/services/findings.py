@@ -3,7 +3,7 @@
 Every function that needs a rule constant takes the `DASHBOARD_RULES` dictionary as `rules`.
 '''
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Literal
 
@@ -30,6 +30,7 @@ class Finding:
     total_locations: int | None
     concentrated_on: date | None
     explanation: str
+    affected_by_metric: dict[str, int] | None = None
 
 
 def location_metric_finding(location, event_type, current, baseline, status, rules):
@@ -70,8 +71,73 @@ def no_activity_finding(location):
     )
 
 
+def account_wide_finding(direction, members, total_locations):
+    '''One Account-wide Finding for the per-Location Findings of one direction.
+
+    `members` maps each rolled-up Event Type to its per-Location Findings. `current`, `baseline`
+    and `delta_pct` describe the first Metric, summed over the Locations affected on it.
+    '''
+    event_types = tuple(event_type for event_type in EVENT_TYPES if event_type in members)
+    affected_by_metric = {event_type: len(members[event_type]) for event_type in event_types}
+    lead = members[event_types[0]]
+    current = sum(finding.current for finding in lead)
+    baseline = sum(finding.baseline for finding in lead)
+    critical = any(
+        finding.severity == rules_service.CRITICAL
+        for findings_of_metric in members.values()
+        for finding in findings_of_metric
+    )
+    return Finding(
+        scope='account',
+        location=None,
+        kind='metric',
+        event_types=event_types,
+        direction=direction,
+        severity=rules_service.CRITICAL if critical else rules_service.WARNING,
+        current=current,
+        baseline=baseline,
+        delta_pct=rules_service.delta_pct(current, baseline),
+        affected_locations=max(affected_by_metric.values()),
+        total_locations=total_locations,
+        concentrated_on=None,
+        explanation=explanations.account_wide(
+            event_types, direction, affected_by_metric, total_locations, current, baseline, None
+        ),
+        affected_by_metric=affected_by_metric,
+    )
+
+
+def roll_up(found, total_locations, rules):
+    '''Replace the per-Location Findings that most Locations share with Account-wide Findings.
+
+    A (Metric, direction) rolls up when at least `rollup_min_locations` Locations, and at least
+    `rollup_min_share` of the `total_locations` universe, have it. Rolled-up Metrics of the same
+    direction merge into one Account-wide Finding; everything else is kept.
+    '''
+    groups = {}
+    for finding in found:
+        if finding.kind == 'metric':
+            groups.setdefault(finding.direction, {}).setdefault(finding.event_types[0], []).append(
+                finding
+            )
+    rolled = {}
+    for direction, members in groups.items():
+        for event_type, group in members.items():
+            if (
+                len(group) >= rules['rollup_min_locations']
+                and len(group) >= rules['rollup_min_share'] * total_locations
+            ):
+                rolled.setdefault(direction, {})[event_type] = group
+    replaced = {id(finding) for members in rolled.values() for group in members.values() for finding in group}
+    kept = [finding for finding in found if id(finding) not in replaced]
+    return kept + [
+        account_wide_finding(direction, members, total_locations)
+        for direction, members in rolled.items()
+    ]
+
+
 def order_key(finding):
-    '''Sort key: critical before warning, then the larger deviation first.
+    '''Sort key: Account-wide Findings first, then critical before warning, then the larger deviation first.
 
     A Finding with no percentage (a No-activity Finding, or a Metric that rose from a zero
     Baseline) has no upper bound on its deviation and leads its tier. Location and Event Type
@@ -79,7 +145,50 @@ def order_key(finding):
     '''
     tier = 0 if finding.severity == rules_service.CRITICAL else 1
     size = float('inf') if finding.delta_pct is None else abs(finding.delta_pct)
-    return (tier, -size, finding.location or '', finding.event_types)
+    return (finding.scope != 'account', tier, -size, finding.location or '', finding.event_types)
+
+
+def concentrated_day(day_rows, event_types, rules):
+    '''The local day holding more than `one_day_concentration_share` of these Metrics' events, if any.
+
+    `day_rows` carry `event_type`, `day` and `count`; only rows of `event_types` are pooled.
+    '''
+    per_day = {}
+    for row in day_rows:
+        if row['event_type'] in event_types:
+            per_day[row['day']] = per_day.get(row['day'], 0) + row['count']
+    if not per_day:
+        return None
+    day = max(per_day, key=per_day.get)
+    if per_day[day] > rules['one_day_concentration_share'] * sum(per_day.values()):
+        return day
+    return None
+
+
+def name_concentration(found, day_rows, rules):
+    '''`found` with the day callout added to every Account-wide Finding whose week was concentrated.'''
+    named = []
+    for finding in found:
+        day = concentrated_day(day_rows, finding.event_types, rules) if finding.scope == 'account' else None
+        if day is None:
+            named.append(finding)
+            continue
+        named.append(
+            replace(
+                finding,
+                concentrated_on=day,
+                explanation=explanations.account_wide(
+                    finding.event_types,
+                    finding.direction,
+                    finding.affected_by_metric,
+                    finding.total_locations,
+                    finding.current,
+                    finding.baseline,
+                    day,
+                ),
+            )
+        )
+    return named
 
 
 NO_EVENTS = 'no_events'
@@ -121,4 +230,4 @@ def build(rows, week_start, window, rules):
                 found.append(
                     location_metric_finding(location, event_type, current, typical, status, rules)
                 )
-    return sorted(found, key=order_key)
+    return sorted(roll_up(found, len(by_location), rules), key=order_key)

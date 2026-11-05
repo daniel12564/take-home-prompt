@@ -47,6 +47,24 @@ const DROP = {
   explanation: 'East received 0 calls this week; it typically receives about 5.',
 };
 
+const ACCOUNT_WIDE = {
+  scope: 'account',
+  location: null,
+  kind: 'metric',
+  event_types: ['call_received', 'lead_created', 'appointment_set'],
+  direction: 'above',
+  severity: 'critical',
+  current: 529,
+  baseline: 41,
+  delta_pct: 1190.2,
+  affected_locations: 15,
+  total_locations: 15,
+  concentrated_on: '2026-06-03',
+  affected_by_metric: { call_received: 15, lead_created: 15, appointment_set: 14 },
+  explanation:
+    'Calls, leads and appointments were far above typical at 14 to 15 of 15 locations (529 calls vs about 41). Most of this week\'s events happened on Wed 3 Jun.',
+};
+
 function payload(findings: unknown[], insufficientReason: string | null = null) {
   return {
     account_id: 1,
@@ -205,5 +223,64 @@ describe('AttentionList', () => {
     expect(critical).toHaveAttribute('data-severity', 'critical');
     expect(warning).toHaveAttribute('data-severity', 'warning');
     expect(critical.className).not.toBe(warning.className);
+  });
+
+  it('renders an Account-wide card above the per-Location cards', async () => {
+    stubFetch({ success: true, data: payload([ACCOUNT_WIDE, NO_ACTIVITY, SURGE]) });
+
+    renderList({ accountId: '1', week: '2026-06-01' });
+
+    const cards = await screen.findAllByRole('listitem');
+    expect(cards).toHaveLength(3);
+    expect(cards[0]).toHaveAttribute('data-scope', 'account');
+    expect(within(cards[0]).getByText('Account-wide')).toBeInTheDocument();
+    expect(within(cards[0]).getByText(ACCOUNT_WIDE.explanation)).toBeInTheDocument();
+    expect(cards[1]).toHaveAttribute('data-scope', 'location');
+    expect(within(cards[1]).getByText('South')).toBeInTheDocument();
+    expect(within(cards[2]).getByText('North')).toBeInTheDocument();
+  });
+
+  it('shows how many locations an Account-wide Finding affected and which Metrics', async () => {
+    stubFetch({ success: true, data: payload([ACCOUNT_WIDE]) });
+
+    renderList({ accountId: '1', week: '2026-06-01' });
+
+    const card = await screen.findByRole('listitem');
+    expect(within(card).getByText('15 of 15 locations')).toBeInTheDocument();
+    expect(within(card).getByText('Calls received: 15 of 15')).toBeInTheDocument();
+    expect(within(card).getByText('Leads created: 15 of 15')).toBeInTheDocument();
+    expect(within(card).getByText('Appointments set: 14 of 15')).toBeInTheDocument();
+    expect(within(card).getByText('Above typical')).toBeInTheDocument();
+    expect(within(card).queryByText(/^This week:/)).not.toBeInTheDocument();
+  });
+
+  it('calls out the day an Account-wide Finding was concentrated on', async () => {
+    stubFetch({ success: true, data: payload([ACCOUNT_WIDE]) });
+
+    renderList({ accountId: '1', week: '2026-06-01' });
+
+    const card = await screen.findByRole('listitem');
+    expect(within(card).getByText('Concentrated on Wed 3 Jun')).toBeInTheDocument();
+  });
+
+  it('shows no day callout when the week was not concentrated', async () => {
+    stubFetch({
+      success: true,
+      data: payload([{ ...ACCOUNT_WIDE, concentrated_on: null }]),
+    });
+
+    renderList({ accountId: '1', week: '2026-06-01' });
+
+    const card = await screen.findByRole('listitem');
+    expect(within(card).queryByText(/Concentrated on/)).not.toBeInTheDocument();
+  });
+
+  it('styles an Account-wide card differently from a per-Location card', async () => {
+    stubFetch({ success: true, data: payload([ACCOUNT_WIDE, NO_ACTIVITY]) });
+
+    renderList({ accountId: '1', week: '2026-06-01' });
+
+    const [account, location] = await screen.findAllByRole('listitem');
+    expect(account.className).not.toBe(location.className);
   });
 });

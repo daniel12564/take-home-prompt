@@ -2,7 +2,7 @@ from zoneinfo import ZoneInfo
 
 from django.db import models
 from django.db.models import Count
-from django.db.models.functions import TruncWeek
+from django.db.models.functions import TruncDate, TruncWeek
 
 from .services import periods
 
@@ -41,3 +41,19 @@ class ActivityEventQuerySet(models.QuerySet):
         wanted = {week.start for week in bounds}
         counts = [{**row, 'week': row['week'].date()} for row in rows]
         return [row for row in counts if row['week'] in wanted]
+
+    def daily_counts(self, account, week_start):
+        '''Event counts per Event Type and local day of one Reporting Week, in one grouped query.
+
+        Days are truncated in the Account's timezone. Returns dicts with `event_type`, `day`
+        (a date) and `count`; days with no events are absent.
+        '''
+        week = periods.week_containing(week_start, account.timezone)
+        return list(
+            self.filter(
+                account=account, occurred_at__gte=week.starts_at, occurred_at__lt=week.ends_at
+            )
+            .annotate(day=TruncDate('occurred_at', tzinfo=ZoneInfo(account.timezone)))
+            .values('event_type', 'day')
+            .annotate(count=Count('id'))
+        )
