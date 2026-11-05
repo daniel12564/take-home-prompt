@@ -1,34 +1,51 @@
 '''Database entry point for the dashboard payloads.'''
 
-from collections import Counter
+from django.conf import settings
 
-from . import periods
+from . import baseline, periods, rules
 from ..models import ActivityEvent
 
-INSUFFICIENT_DATA = 'insufficient_data'
+
+def metric_summary(event_type, rows, week_start, window, has_activity):
+    '''One Metric of the Activity Summary: count, Baseline, difference and Status.'''
+    current = baseline.weekly_totals(rows, [week_start], event_type)[0]
+    baseline_value = baseline.median(baseline.weekly_totals(rows, window, event_type))
+    status = rules.status(
+        current,
+        baseline_value or 0,
+        len(window),
+        settings.DASHBOARD_RULES,
+        has_activity=has_activity,
+    )
+    judged = status != rules.INSUFFICIENT_DATA
+    return {
+        'event_type': event_type,
+        'current': current,
+        'baseline': float(baseline_value) if judged else None,
+        'delta': float(rules.delta(current, baseline_value)) if judged else None,
+        'delta_pct': rules.delta_pct(current, baseline_value) if judged else None,
+        'status': status,
+    }
 
 
 def activity_summary(account, week_start, location):
-    '''Activity Summary payload: weekly counts per Metric; Baseline and Status are not computed yet.'''
+    '''Activity Summary payload: each Metric's count, Baseline, delta and Status for the scope.'''
     week = periods.week_containing(week_start, account.timezone)
-    totals = Counter()
-    for row in ActivityEvent.objects.weekly_counts(account, [week.start], location):
-        totals[row['event_type']] += row['count']
+    window = baseline.baseline_window(
+        week.start,
+        periods.first_week_start(settings.DASHBOARD_DATA_START_DATE),
+        settings.DASHBOARD_RULES,
+    )
+    rows = ActivityEvent.objects.weekly_counts(account, [*window, week.start], location)
+    has_activity = bool(rows)
     return {
         'account_id': account.id,
         'week_start': week.start.isoformat(),
         'week_end': week.end.isoformat(),
         'location': location,
-        'baseline_weeks_used': 0,
+        'baseline_weeks_used': len(window),
         'metrics': [
-            {
-                'event_type': event_type,
-                'current': totals[event_type],
-                'baseline': None,
-                'delta': None,
-                'delta_pct': None,
-                'status': INSUFFICIENT_DATA,
-            }
+            metric_summary(event_type, rows, week.start, window, has_activity)
             for event_type in ActivityEvent.EventType.values
         ],
     }

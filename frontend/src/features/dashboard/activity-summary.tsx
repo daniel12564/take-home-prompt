@@ -1,5 +1,5 @@
 import { useActivitySummary } from '../../api/dashboard';
-import type { EventType } from '../../lib/types';
+import type { EventType, Metric } from '../../lib/types';
 import { StatusBadge } from './status-badge';
 
 const METRIC_LABELS: Record<EventType, string> = {
@@ -7,6 +7,25 @@ const METRIC_LABELS: Record<EventType, string> = {
   lead_created: 'Leads created',
   appointment_set: 'Appointments set',
 };
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatSigned(value: number, suffix = ''): string {
+  if (value === 0) return `0${suffix}`;
+  return `${value > 0 ? '+' : '-'}${formatNumber(Math.abs(value))}${suffix}`;
+}
+
+function formatDelta(metric: Metric): string | null {
+  if (metric.delta === null) return null;
+  if (metric.delta_pct === null) return formatSigned(metric.delta);
+  return `${formatSigned(metric.delta)} (${formatSigned(metric.delta_pct, '%')})`;
+}
+
+function weeksOfHistory(weeks: number): string {
+  return `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
+}
 
 interface ActivitySummaryProps {
   accountId: string | null;
@@ -51,9 +70,25 @@ export function ActivitySummary({ accountId, week, location }: ActivitySummaryPr
               </h3>
               <p className='text-3xl font-semibold text-slate-900'>{metric.current}</p>
               <StatusBadge status={metric.status} />
+              {metric.status === 'insufficient_data' ? (
+                <p className='text-sm text-slate-500'>
+                  Not enough history yet: more weeks of activity are needed to judge this week.
+                </p>
+              ) : (
+                <div className='text-sm text-slate-600'>
+                  {metric.baseline !== null && <p>Typical: {formatNumber(metric.baseline)}</p>}
+                  {formatDelta(metric) && <p>{formatDelta(metric)}</p>}
+                </div>
+              )}
             </article>
           ))}
         </div>
+      )}
+      {data && data.metrics.some((metric) => metric.status !== 'insufficient_data') && (
+        <p className='text-xs text-slate-500'>
+          Typical values are based on the {weeksOfHistory(data.baseline_weeks_used)} before this
+          one.
+        </p>
       )}
     </section>
   );

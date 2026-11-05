@@ -89,3 +89,17 @@ REST_FRAMEWORK = {
 DASHBOARD_REFERENCE_DATE = date(2026, 7, 27)
 # First day with seeded Activity Events; the first selectable Reporting Week is the Monday on or after it.
 DASHBOARD_DATA_START_DATE = date(2026, 2, 1)
+
+# Every constant of the normality rules (see ADR-0001 and PLAN_REFINED 3.5); nothing else may hardcode them.
+# The rollup_* and one_day_* keys are consumed by the Account-wide Findings (ticket 07).
+DASHBOARD_RULES = {
+    'baseline_weeks': 8,
+    'min_baseline_weeks': 4,
+    'tolerance_abs_min': 3,
+    'tolerance_rel': 0.30,
+    'tolerance_sqrt_factor': 1.5,
+    'critical_tolerance_multiple': 2,
+    'rollup_min_locations': 3,
+    'rollup_min_share': 0.5,
+    'one_day_concentration_share': 0.6,
+}

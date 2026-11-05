@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from rest_framework.test import APIClient
 
 from activity.models import ActivityEvent
+from tests.conftest import build_events
 
 
 def summary(account_id, **params):
@@ -39,15 +40,123 @@ def test_account_scope_sums_every_location_for_the_default_week(dashboard_fixtur
     assert metric_counts(data) == {'call_received': 17, 'lead_created': 4, 'appointment_set': 2}
 
 
-def test_metrics_carry_no_baseline_or_status_yet(dashboard_fixture):
+def metric_for(data, event_type):
+    return next(metric for metric in data['metrics'] if metric['event_type'] == event_type)
+
+
+def test_north_calls_are_above_its_baseline_in_the_default_week(dashboard_fixture):
+    data = summary(dashboard_fixture.account_a.id, location='North').json()['data']
+
+    calls = metric_for(data, 'call_received')
+    assert calls['current'] == 12
+    assert calls['baseline'] == 5
+    assert calls['delta'] == 7
+    assert calls['delta_pct'] == 140.0
+    assert calls['status'] == 'above'
+    assert data['baseline_weeks_used'] == 8
+
+
+def test_account_baseline_is_the_median_of_weekly_sums_across_locations(dashboard_fixture):
     data = summary(dashboard_fixture.account_a.id).json()['data']
 
-    assert data['baseline_weeks_used'] == 0
+    calls = metric_for(data, 'call_received')
+    assert calls['current'] == 17
+    assert calls['baseline'] == 15
+    assert calls['delta'] == 2
+    assert calls['delta_pct'] == 13.3
+    assert calls['status'] == 'typical'
+    assert data['baseline_weeks_used'] == 8
+
+
+def test_account_sums_and_baselines_hold_for_the_other_metrics(dashboard_fixture):
+    data = summary(dashboard_fixture.account_a.id).json()['data']
+
+    leads = metric_for(data, 'lead_created')
+    assert (leads['current'], leads['baseline'], leads['status']) == (4, 6, 'typical')
+    appointments = metric_for(data, 'appointment_set')
+    assert (appointments['current'], appointments['baseline'], appointments['status']) == (
+        2,
+        3,
+        'typical',
+    )
+
+
+def test_account_b_is_insufficient_data_on_every_metric(dashboard_fixture):
+    data = summary(dashboard_fixture.account_b.id).json()['data']
+
+    assert len(data['metrics']) == 3
     for metric in data['metrics']:
+        assert metric['current'] == 0
+        assert metric['status'] == 'insufficient_data'
         assert metric['baseline'] is None
         assert metric['delta'] is None
         assert metric['delta_pct'] is None
-        assert metric['status'] == 'insufficient_data'
+    assert data['baseline_weeks_used'] == 8
+
+
+def test_location_without_any_event_in_the_window_or_week_is_insufficient_data(dashboard_fixture):
+    ActivityEvent.objects.create(
+        account=dashboard_fixture.account_a,
+        location='Annex',
+        event_type=ActivityEvent.EventType.CALL_RECEIVED,
+        occurred_at=datetime(2026, 3, 3, 10, 0, tzinfo=ZoneInfo('America/Chicago')),
+    )
+
+    data = summary(dashboard_fixture.account_a.id, location='Annex').json()['data']
+
+    assert {metric['status'] for metric in data['metrics']} == {'insufficient_data'}
+
+
+def test_the_spike_week_does_not_change_the_baseline_of_later_weeks(dashboard_fixture):
+    spike_week = dashboard_fixture.weeks[5]
+    later_weeks = dashboard_fixture.weeks[6:]
+    assert spike_week.isoformat() == '2026-06-22'
+
+    spike = summary(dashboard_fixture.account_a.id, week_start=spike_week.isoformat()).json()['data']
+    assert metric_for(spike, 'call_received')['current'] == 60
+    assert metric_for(spike, 'call_received')['status'] == 'above'
+    for week in later_weeks:
+        data = summary(dashboard_fixture.account_a.id, week_start=week.isoformat()).json()['data']
+        calls = metric_for(data, 'call_received')
+        assert calls['baseline'] == 15, week
+        if week != dashboard_fixture.default_week:
+            assert calls['status'] == 'typical', week
+
+
+def add_steady_history(account, week_starts):
+    ActivityEvent.objects.bulk_create(
+        event
+        for week_start in week_starts
+        for event in build_events(
+            account, 'North', ActivityEvent.EventType.CALL_RECEIVED, week_start, 5
+        )
+    )
+
+
+def test_baseline_weeks_used_is_smaller_near_the_start_of_the_data(dashboard_fixture):
+    account = dashboard_fixture.account_a
+    add_steady_history(account, [date(2026, 2, 2) + timedelta(weeks=n) for n in range(6)])
+
+    second_week = summary(account.id, week_start='2026-02-09').json()['data']
+    first_week = summary(account.id, week_start='2026-02-02').json()['data']
+
+    assert second_week['baseline_weeks_used'] == 1
+    assert first_week['baseline_weeks_used'] == 0
+
+
+def test_fewer_than_four_weeks_in_the_window_give_no_verdict(dashboard_fixture):
+    account = dashboard_fixture.account_a
+    add_steady_history(account, [date(2026, 2, 2) + timedelta(weeks=n) for n in range(6)])
+
+    three_weeks = summary(account.id, week_start='2026-02-23').json()['data']
+    four_weeks = summary(account.id, week_start='2026-03-02').json()['data']
+
+    assert three_weeks['baseline_weeks_used'] == 3
+    assert metric_for(three_weeks, 'call_received')['status'] == 'insufficient_data'
+    assert metric_for(three_weeks, 'call_received')['baseline'] is None
+    assert four_weeks['baseline_weeks_used'] == 4
+    calls = metric_for(four_weeks, 'call_received')
+    assert (calls['current'], calls['baseline'], calls['status']) == (5, 5, 'typical')
 
 
 def test_location_scope_counts_only_that_location(dashboard_fixture):

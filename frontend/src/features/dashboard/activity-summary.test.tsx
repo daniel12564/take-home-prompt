@@ -119,3 +119,106 @@ describe('ActivitySummary', () => {
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
   });
 });
+
+function metric(overrides: Record<string, unknown>) {
+  return {
+    event_type: 'call_received',
+    current: 51,
+    baseline: 42,
+    delta: 9,
+    delta_pct: 21.4,
+    status: 'typical',
+    ...overrides,
+  };
+}
+
+function payloadWith(metrics: unknown[], baselineWeeksUsed = 8) {
+  return { ...PAYLOAD, baseline_weeks_used: baselineWeeksUsed, metrics };
+}
+
+describe('ActivitySummary Baseline and Status', () => {
+  it('shows the typical value, the difference and its percentage next to the count', async () => {
+    stubFetch({ success: true, data: payloadWith([metric({})]) });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: null });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(within(calls).getByText('51')).toBeInTheDocument();
+    expect(within(calls).getByText('Typical: 42')).toBeInTheDocument();
+    expect(within(calls).getByText('+9 (+21.4%)')).toBeInTheDocument();
+    expect(within(calls).getByText('Typical')).toBeInTheDocument();
+  });
+
+  it('shows a drop with a minus sign and a fractional Baseline with one decimal', async () => {
+    stubFetch({
+      success: true,
+      data: payloadWith([metric({ current: 2, baseline: 3.5, delta: -1.5, delta_pct: -42.9, status: 'typical' })]),
+    });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: null });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(within(calls).getByText('Typical: 3.5')).toBeInTheDocument();
+    expect(within(calls).getByText('-1.5 (-42.9%)')).toBeInTheDocument();
+  });
+
+  it('shows only the difference when the percentage is undefined', async () => {
+    stubFetch({
+      success: true,
+      data: payloadWith([metric({ current: 3, baseline: 0, delta: 3, delta_pct: null, status: 'above' })]),
+    });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: null });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(within(calls).getByText('Typical: 0')).toBeInTheDocument();
+    expect(within(calls).getByText('+3')).toBeInTheDocument();
+    expect(within(calls).getByText('Above typical')).toBeInTheDocument();
+  });
+
+  it('says how many weeks of history the Baseline was computed from', async () => {
+    stubFetch({ success: true, data: payloadWith([metric({})], 8) });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: null });
+
+    expect(await screen.findByText('Typical values are based on the 8 weeks before this one.')).toBeInTheDocument();
+  });
+
+  it('uses the singular for a single week of history', async () => {
+    stubFetch({ success: true, data: payloadWith([metric({})], 1) });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: null });
+
+    expect(await screen.findByText('Typical values are based on the 1 week before this one.')).toBeInTheDocument();
+  });
+
+  it('explains that more weeks of history are needed instead of showing a verdict', async () => {
+    stubFetch({
+      success: true,
+      data: payloadWith(
+        [metric({ baseline: null, delta: null, delta_pct: null, status: 'insufficient_data' })],
+        3,
+      ),
+    });
+
+    renderSummary({ accountId: '1', week: '2026-02-23', location: null });
+
+    const calls = await screen.findByRole('article', { name: 'Calls received' });
+    expect(within(calls).getByText('Insufficient data')).toBeInTheDocument();
+    expect(
+      within(calls).getByText('Not enough history yet: more weeks of activity are needed to judge this week.'),
+    ).toBeInTheDocument();
+    expect(within(calls).queryByText(/Typical:/)).not.toBeInTheDocument();
+    expect(within(calls).queryByText(/%\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Typical values are based on/)).not.toBeInTheDocument();
+  });
+
+  it('does not show the insufficient data explanation on a judged card', async () => {
+    stubFetch({ success: true, data: payloadWith([metric({})]) });
+
+    renderSummary({ accountId: '1', week: '2026-07-20', location: null });
+
+    await screen.findByRole('article', { name: 'Calls received' });
+    expect(screen.queryByText(/Not enough history yet/)).not.toBeInTheDocument();
+  });
+});
